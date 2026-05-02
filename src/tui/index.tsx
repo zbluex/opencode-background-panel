@@ -6,7 +6,6 @@ import { createSidebarContentSlot } from "./slots/sidebar-content"
 const id = "opencode-background-task-panel"
 
 const tui: TuiPlugin = async (api: TuiPluginApi, _options, _meta) => {
-    // Register sidebar slot - passes api for internal use
     const slot = createSidebarContentSlot(api)
     api.slots.register(slot)
 }

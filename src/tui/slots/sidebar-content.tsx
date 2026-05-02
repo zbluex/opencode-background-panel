@@ -4,8 +4,7 @@ import { createSignal, createMemo, createEffect, on, onCleanup } from "solid-js"
 import type { TuiSlotPlugin, TuiPluginApi, TuiThemeCurrent } from "@opencode-ai/plugin/tui"
 
 const SINGLE_BORDER = { type: "single" } as any
-const REFRESH_DEBOUNCE_MS = 150
-const TIME_UPDATE_INTERVAL_MS = 500 // Poll every 500ms for real-time updates
+const TIME_UPDATE_INTERVAL_MS = 500
 
 interface Task {
   id: string
@@ -15,12 +14,11 @@ interface Task {
   agent?: string
   createdAt: number
   updatedAt: number
+  sessionId?: string
 }
 
-// Global task store - persists across renders
+// Module-level state - persists across component instances
 const tasks = new Map<string, Task>()
-
-// Map to track session ID to task ID mapping
 const sessionToTask = new Map<string, string>()
 
 function formatTime(ms: number): string {
@@ -50,139 +48,92 @@ function statusColor(status: string, t: TuiThemeCurrent): string {
   }
 }
 
-const StatRow = (props: {
-  theme: TuiThemeCurrent
-  label: string
-  value: string
-  accent?: boolean
-  warning?: boolean
-  dim?: boolean
-}) => {
-  const fg = createMemo(() => {
-    if (props.warning) return props.theme.warning
-    if (props.accent) return props.theme.accent
-    if (props.dim) return props.theme.textMuted
-    return props.theme.text
-  })
-  return (
-    <box width="100%" flexDirection="row" justifyContent="space-between">
-      <text fg={props.theme.textMuted}>{props.label}</text>
-      <text fg={fg()}><b>{props.value}</b></text>
-    </box>
-  )
-}
-
 const TaskPanel = (props: { api: TuiPluginApi; sessionID: () => string; theme: TuiThemeCurrent }) => {
   const [snapshot, setSnapshot] = createSignal<Task[]>([])
-  const [tick, setTick] = createSignal(0) // Force refresh for time updates
-  let refreshTimer: ReturnType<typeof setTimeout> | undefined
   let timeUpdateTimer: ReturnType<typeof setInterval> | undefined
 
   const t = createMemo(() => props.theme)
 
   const refresh = () => {
     setSnapshot(Array.from(tasks.values()))
-    // Also trigger tick to force time display updates
-    setTick(t => t + 1)
-    try {
-      props.api.renderer.requestRender()
-    } catch {}
   }
 
-  const scheduleRefresh = () => {
-    if (refreshTimer) clearTimeout(refreshTimer)
-    refreshTimer = setTimeout(() => {
-      refreshTimer = undefined
+  // Set up event subscriptions - these persist at module level
+  // We use a closure to keep the unsubscribe function
+  const setupEvents = () => {
+    const unsubCreated = props.api.event.on("session.created", (event) => {
+      const sessionId = (event.properties.sessionID as string | undefined) || (event.properties.info as { id?: string; session_id?: string })?.id
+      if (!sessionId) return
+      const info = event.properties.info as { id?: string; session_id?: string; title?: string } | undefined
+      const taskId = info?.id || sessionId
+      const task: Task = {
+        id: taskId,
+        title: info?.title || "Untitled Task",
+        status: "running",
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
+        sessionId: sessionId,
+      }
+      tasks.set(taskId, task)
+      sessionToTask.set(sessionId, taskId)
       refresh()
-    }, REFRESH_DEBOUNCE_MS)
+    })
+
+    const unsubIdle = props.api.event.on("session.idle", (event) => {
+      const sessionId = event.properties.sessionID as string | undefined
+      if (!sessionId) return
+      const taskId = sessionToTask.get(sessionId)
+      const task = taskId ? tasks.get(taskId) : tasks.get(sessionId)
+      if (task && task.status === "running") {
+        task.status = "completed"
+        task.updatedAt = Date.now()
+        refresh()
+      }
+    })
+
+    const unsubError = props.api.event.on("session.error", (event) => {
+      const sessionId = event.properties.sessionID as string | undefined
+      if (!sessionId) return
+      const taskId = sessionToTask.get(sessionId)
+      const task = taskId ? tasks.get(taskId) : tasks.get(sessionId)
+      if (task && task.status === "running") {
+        task.status = "failed"
+        task.updatedAt = Date.now()
+        refresh()
+      }
+    })
+
+    return () => {
+      unsubCreated()
+      unsubIdle()
+      unsubError()
+    }
   }
+
+  // Module-level unsubscribe function - persists across component instances
+  const unsubscribe = setupEvents()
 
   onCleanup(() => {
-    if (refreshTimer) clearTimeout(refreshTimer)
     if (timeUpdateTimer) clearInterval(timeUpdateTimer)
+    // Note: We intentionally DON'T call unsubscribe() here
+    // because we want event subscriptions to persist across panel navigation
   })
 
-  // Time update interval - forces UI refresh every 500ms for real-time display
-  // This ensures when switching back to the panel, updated times and statuses are shown immediately
+  // Time update: refresh UI periodically to update "X ago" timestamps
   createEffect(() => {
-    // Clear existing timer
-    if (timeUpdateTimer) clearInterval(timeUpdateTimer)
-    // Start new interval that forces re-render
-    // Always update to show current time, not just when tasks are running
     timeUpdateTimer = setInterval(() => {
-      setTick(t => t + 1)  // Force component to re-render
-      scheduleRefresh()
+      refresh()
+      try {
+        props.api.renderer.requestRender()
+      } catch {}
     }, TIME_UPDATE_INTERVAL_MS)
+    onCleanup(() => {
+      if (timeUpdateTimer) clearInterval(timeUpdateTimer)
+    })
   })
 
-  // Subscribe to events for live updates
-  createEffect(
-    on(
-      props.sessionID,
-      (sessionID) => {
-        const unsubs = [
-          props.api.event.on("session.created", (event) => {
-            const info = event.properties.info as { id?: string; session_id?: string; title?: string } | undefined
-            const taskId = info?.id || info?.session_id || "unknown"
-            const sessionId = info?.session_id || info?.id || taskId
-            const task: Task = {
-              id: taskId,
-              title: info?.title || "Untitled Task",
-              status: "running",
-              createdAt: Date.now(),
-              updatedAt: Date.now(),
-            }
-            tasks.set(taskId, task)
-            sessionToTask.set(sessionId, taskId)
-            scheduleRefresh()
-          }),
-          props.api.event.on("session.updated", (event) => {
-            const info = event.properties.info as { id?: string; session_id?: string } | undefined
-            const taskId = info?.id || info?.session_id
-            if (!taskId) return
-            const task = tasks.get(taskId)
-            // Only update if task is still running - don't overwrite completed/failed status
-            if (task && task.status === "running") {
-              task.updatedAt = Date.now()
-              scheduleRefresh()
-            }
-          }),
-          props.api.event.on("session.idle", (event) => {
-            // sessionID is directly on properties (camelCase), not nested under info
-            const sessionId = event.properties.sessionID as string | undefined
-            if (!sessionId) return
-            // Look up task by session ID mapping, then by direct ID lookup
-            const taskId = sessionToTask.get(sessionId)
-            const task = taskId ? tasks.get(taskId) : tasks.get(sessionId)
-            // Only mark as completed if it was created by us and still running
-            if (task && task.status === "running") {
-              task.status = "completed"
-              task.updatedAt = Date.now()
-              scheduleRefresh()
-            }
-          }),
-          props.api.event.on("session.error", (event) => {
-            // sessionID is directly on properties (camelCase), not nested under info
-            const sessionId = event.properties.sessionID as string | undefined
-            if (!sessionId) return
-            // Look up task by session ID mapping, then by direct ID lookup
-            const taskId = sessionToTask.get(sessionId)
-            const task = taskId ? tasks.get(taskId) : tasks.get(sessionId)
-            // Only mark as failed if it was created by us and still running
-            if (task && task.status === "running") {
-              task.status = "failed"
-              task.updatedAt = Date.now()
-              scheduleRefresh()
-            }
-          }),
-        ]
-        onCleanup(() => {
-          for (const unsub of unsubs) unsub()
-        })
-      },
-      { defer: false },
-    ),
-  )
+  // Initial render
+  refresh()
 
   const runningCount = createMemo(() => snapshot().filter((task) => task.status === "running").length)
   const completedCount = createMemo(() => snapshot().filter((task) => task.status === "completed").length)
@@ -226,7 +177,16 @@ const TaskPanel = (props: { api: TuiPluginApi; sessionID: () => string; theme: T
           <text fg={t().textMuted}>No background tasks</text>
         )}
         {snapshot().map((task) => (
-          <box key={task.id} flexDirection="column" marginTop={1}>
+          <box
+            key={task.id}
+            flexDirection="column"
+            marginTop={1}
+            onMouseDown={() => {
+              if (task.sessionId) {
+                props.api.route.navigate("session", { sessionID: task.sessionId })
+              }
+            }}
+          >
             <box flexDirection="row" justifyContent="space-between">
               <text fg={statusColor(task.status, t())}>{statusIcon(task.status)}</text>
               <text fg={t().text}><b>{task.title}</b></text>
@@ -234,6 +194,7 @@ const TaskPanel = (props: { api: TuiPluginApi; sessionID: () => string; theme: T
             </box>
             <box flexDirection="row" justifyContent="space-between">
               <text fg={statusColor(task.status, t())}><b>{task.status.toUpperCase()}</b></text>
+              {task.sessionId && <text fg={t().accent}>Click to open</text>}
             </box>
           </box>
         ))}
