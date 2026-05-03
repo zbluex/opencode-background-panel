@@ -1,0 +1,231 @@
+// Database module - SQLite storage using bun:sqlite for multi-process access
+// bun:sqlite is built into Bun runtime and supports WAL mode for concurrent access
+
+import { Database as BunDatabase } from "bun:sqlite"
+import { existsSync, mkdirSync } from "fs"
+
+const DATA_DIR = "C:/Users/zbluex/.config/opencode/plugins/background-task-panel/data"
+const DB_FILE = `${DATA_DIR}/tasks.db`
+
+// Task interface
+export interface Task {
+  id: string
+  sessionId: string
+  parentSessionId?: string  // Parent session that created this subagent
+  type: "session_create" | "session_complete" | "error"
+  title: string
+  status: "running" | "pending" | "completed" | "failed"
+  createdAt: number
+  updatedAt: number
+  pid?: number
+}
+
+// In-memory store (local to this process)
+const memoryStore = new Map<string, Task>()
+
+let db: BunDatabase | null = null
+
+// Ensure data directory exists
+function ensureDataDir() {
+  if (!existsSync(DATA_DIR)) {
+    mkdirSync(DATA_DIR, { recursive: true })
+    console.log("[BTP] Created data directory:", DATA_DIR)
+  }
+}
+
+// Initialize database
+function initDb(): void {
+  if (db) return
+
+  ensureDataDir()
+
+  try {
+    console.log("[BTP] Initializing bun:sqlite...")
+
+    if (existsSync(DB_FILE)) {
+      console.log("[BTP] Opening existing DB file")
+      db = new BunDatabase(DB_FILE)
+    } else {
+      console.log("[BTP] Creating new DB file")
+      db = new BunDatabase(DB_FILE)
+      db.exec(`
+        CREATE TABLE IF NOT EXISTS tasks (
+          id TEXT PRIMARY KEY,
+          sessionId TEXT NOT NULL,
+          parentSessionId TEXT,
+          type TEXT NOT NULL,
+          title TEXT NOT NULL,
+          status TEXT NOT NULL,
+          createdAt INTEGER NOT NULL,
+          updatedAt INTEGER NOT NULL,
+          pid INTEGER
+        )
+      `)
+    }
+
+    // Enable WAL mode for better concurrency
+    db.run("PRAGMA journal_mode=WAL")
+    console.log("[BTP] Journal mode:", db.query("PRAGMA journal_mode").get())
+
+    console.log("[BTP] bun:sqlite initialized successfully")
+  } catch (e: any) {
+    console.log("[BTP] InitDb error:", e?.message || e)
+  }
+}
+
+// Check if process is running (Windows-compatible)
+function isProcessRunning(pid: number): boolean {
+  try {
+    if (process.platform === "win32") {
+      require("child_process").execSync(`tasklist /FI "PID eq ${pid}" 2>nul`, { stdio: "pipe" })
+      return true
+    } else {
+      process.kill(pid, 0)
+      return true
+    }
+  } catch {
+    return false
+  }
+}
+
+// Load tasks from DB
+export function loadTasks(): void {
+  ensureDataDir()
+  initDb()
+
+  if (!db) {
+    console.log("[BTP] DB not initialized after initDb() - using in-memory fallback")
+    return
+  }
+
+  memoryStore.clear()
+
+  try {
+    const stmt = db.prepare("SELECT * FROM tasks")
+    const rows = stmt.all() as any[]
+
+    let deletedCount = 0
+
+    for (const row of rows) {
+      const task: Task = {
+        id: row.id,
+        sessionId: row.sessionId,
+        parentSessionId: row.parentSessionId,
+        type: row.type,
+        title: row.title,
+        status: row.status,
+        createdAt: row.createdAt,
+        updatedAt: row.updatedAt,
+        pid: row.pid
+      }
+
+      // Clean orphaned tasks
+      if (task.pid && task.status === "running") {
+        if (!isProcessRunning(task.pid)) {
+          console.log("[BTP] Deleting orphaned task (PID", task.pid, "not running):", task.title)
+          db.prepare("DELETE FROM tasks WHERE id = ?").run(task.id)
+          deletedCount++
+          continue
+        }
+      }
+
+      memoryStore.set(task.id, task)
+    }
+
+    console.log("[BTP] Loaded", memoryStore.size, "tasks from DB")
+  } catch (e) {
+    console.log("[BTP] Error loading tasks:", e)
+  }
+}
+
+// Get all tasks
+export function getAllTasks(): Task[] {
+  return Array.from(memoryStore.values())
+}
+
+// Get task by ID
+export function getTask(id: string): Task | undefined {
+  return memoryStore.get(id)
+}
+
+// Add or update task
+export function setTask(task: Task): void {
+  memoryStore.set(task.id, task)
+
+  if (db) {
+    try {
+      const stmt = db.prepare(`
+        INSERT OR REPLACE INTO tasks (id, sessionId, parentSessionId, type, title, status, createdAt, updatedAt, pid)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `)
+      stmt.run(
+        task.id,
+        task.sessionId,
+        task.parentSessionId || null,
+        task.type,
+        task.title,
+        task.status,
+        task.createdAt,
+        task.updatedAt,
+        task.pid || null
+      )
+    } catch (e) {
+      console.log("[BTP] setTask error:", e)
+    }
+  }
+}
+
+// Delete task
+export function deleteTask(id: string): void {
+  memoryStore.delete(id)
+  if (db) {
+    try {
+      db.prepare("DELETE FROM tasks WHERE id = ?").run(id)
+    } catch (e) {
+      console.log("[BTP] deleteTask error:", e)
+    }
+  }
+}
+
+// Force sync from DB (reload from file)
+export function syncFromDb(): void {
+  loadTasks()
+}
+
+// Get DB for direct queries (for TUI plugin)
+export function getDb(): BunDatabase | null {
+  initDb()
+  return db
+}
+
+// Query tasks directly (for TUI)
+export function queryTasks(): Task[] {
+  initDb()
+  if (!db) return []
+
+  try {
+    const rows = db.prepare("SELECT * FROM tasks ORDER BY updatedAt DESC").all() as any[]
+    return rows.map(row => ({
+      id: row.id,
+      sessionId: row.sessionId,
+      parentSessionId: row.parentSessionId,
+      type: row.type,
+      title: row.title,
+      status: row.status,
+      createdAt: row.createdAt,
+      updatedAt: row.updatedAt,
+      pid: row.pid
+    }))
+  } catch (e) {
+    console.log("[BTP] queryTasks error:", e)
+    return []
+  }
+}
+
+// Close database
+export function closeDb(): void {
+  if (db) {
+    db.close()
+    db = null
+  }
+}
