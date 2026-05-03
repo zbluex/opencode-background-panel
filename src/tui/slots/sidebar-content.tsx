@@ -255,7 +255,7 @@ const TaskPanel = (props: { api: TuiPluginApi; sessionID: () => string; theme: T
             <b>Tasks {filterMode() === "session" ? "[Session]" : "[All]"}</b>
           </text>
         </box>
-        <text fg={props.theme.textMuted}>v0.2.0</text>
+        <text fg={props.theme.textMuted}>v0.2.1</text>
       </box>
 
       {/* Running section */}
