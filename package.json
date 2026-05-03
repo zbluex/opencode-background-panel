@@ -1,6 +1,6 @@
 {
   "name": "@zbluex/opencode-background-panel",
-  "version": "0.2.4",
+  "version": "0.2.5",
   "type": "module",
   "description": "OpenCode TUI plugin showing real-time background task list",
   "main": "dist/tui/index.js",
@@ -24,7 +24,7 @@
     "tui"
   ],
   "scripts": {
-    "build": "bun build src/tui/index.tsx --outdir=dist --target=bun --external solid-js --external @opentui/solid",
+    "build": "bunx --yes shx mkdir -p dist/tui && bun build src/tui/index.tsx --outdir=dist/tui --target=bun --external solid-js --external @opentui/solid",
     "typecheck": "tsc --noEmit"
   },
   "peerDependencies": {
@@ -34,8 +34,9 @@
   },
   "dependencies": {},
   "devDependencies": {
-    "solid-js": ">=1.8.0",
+    "@opencode-ai/plugin": ">=1.2.0",
     "@opentui/solid": ">=0.1.95",
-    "@opencode-ai/plugin": ">=1.2.0"
+    "shx": "^0.4.0",
+    "solid-js": ">=1.8.0"
   }
 }
