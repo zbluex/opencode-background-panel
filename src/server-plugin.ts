@@ -3,8 +3,68 @@
 
 import type { Plugin, PluginInput } from "@opencode-ai/plugin"
 import { loadTasks, persist, getTask, setTask, getAllTasks } from "./repo/Database.js"
+import { readFileSync, existsSync, writeFileSync } from "fs"
 
 console.log("[BTP] Server plugin module loaded")
+
+// Config path
+const CONFIG_FILE = "C:/Users/zbluex/.config/opencode/background-panel.jsonc"
+
+// Skip task patterns
+let skipTaskPatterns: RegExp[] = []
+
+// Load config (synchronous)
+function loadConfig(): void {
+  try {
+    if (!existsSync(CONFIG_FILE)) {
+      console.log("[BTP] Config file not found, creating default at", CONFIG_FILE)
+      const defaultConfig = `{
+  // Skip task patterns - titles matching these regex patterns will be skipped
+  // Examples:
+  //   "magic-context-compartment" - skip magic context compartments
+  //   "^test" - skip tasks starting with "test"
+  //   ".*ignore.*" - skip tasks containing "ignore"
+  "skip_tasks": []
+}
+`
+      try {
+        writeFileSync(CONFIG_FILE, defaultConfig, "utf-8")
+      } catch (e) {
+        console.log("[BTP] Failed to create config file:", e)
+      }
+      skipTaskPatterns = []
+      return
+    }
+
+    const content = readFileSync(CONFIG_FILE, "utf-8")
+    // Simple JSON parsing (remove comments)
+    const cleanContent = content
+      .replace(/\/\/.*$/gm, "")
+      .replace(/\/\*[\s\S]*?\*\//g, "")
+
+    const config = JSON.parse(cleanContent)
+    const patterns: string[] = config.skip_tasks || []
+
+    skipTaskPatterns = patterns.map(p => new RegExp(p))
+    console.log("[BTP] Loaded", skipTaskPatterns.length, "skip patterns:", patterns)
+  } catch (e) {
+    console.log("[BTP] Config load error:", e)
+    skipTaskPatterns = []
+  }
+}
+
+// Check if title should be skipped
+function shouldSkipTask(title: string): boolean {
+  for (const pattern of skipTaskPatterns) {
+    if (pattern.test(title)) {
+      return true
+    }
+  }
+  return false
+}
+
+// Load config on startup
+loadConfig()
 
 // Task interface - re-exported from Database
 interface Task {
@@ -125,10 +185,14 @@ async function handleEvent(event: any) {
     console.log("[BTP] Full event properties:", JSON.stringify(properties, null, 2))
     console.log("[BTP] sessionId:", sessionId)
     console.log("[BTP] title:", title)
-    console.log("[BTP] parentID (from properties.info.parentID):", parentID)
-    console.log("[BTP] properties keys:", Object.keys(properties))
-    console.log("[BTP] properties.info keys:", properties.info ? Object.keys(properties.info) : "undefined")
+    console.log("[BTP] parentID:", parentID)
     console.log("[BTP] ==================================")
+
+    // Filter out tasks matching skip patterns
+    if (shouldSkipTask(title)) {
+      console.log("[BTP] Skipping task (matched skip pattern):", title)
+      return
+    }
 
     if (!sessionId) {
       console.log("[BTP] No sessionId in session.created event")
