@@ -1,4 +1,4 @@
 # SQLite database files
 data/tasks.db
 data/tasks.db-shm
-data/tasks.db-wal
+data/tasks.db-walnode_modules
