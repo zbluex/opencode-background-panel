@@ -3,7 +3,7 @@
 import type { TuiPlugin, TuiPluginApi, TuiSlotPlugin } from "@opencode-ai/plugin/tui"
 import { createSidebarContentSlot } from "./slots/sidebar-content"
 
-const id = "opencode-background-task-panel"
+const id = "opencode-background-panel"
 
 const tui: TuiPlugin = async (api: TuiPluginApi, _options, _meta) => {
     console.log("[BTP] TUI plugin loading...")

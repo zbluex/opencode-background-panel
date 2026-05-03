@@ -3,13 +3,19 @@
 import { createSignal, createMemo, createEffect, onCleanup } from "solid-js"
 import type { TuiSlotPlugin, TuiPluginApi, TuiThemeCurrent } from "@opencode-ai/plugin/tui"
 import { Database as BunSqlite } from "bun:sqlite"
+import { fileURLToPath } from "url"
+import { dirname, join } from "path"
 
 const SINGLE_BORDER = { type: "single" } as any
 const TIME_UPDATE_INTERVAL_MS = 500
 const POLL_INTERVAL_MS = 1000
 
-const DATA_DIR = "C:/Users/zbluex/.config/opencode/plugins/background-task-panel/data"
-const DB_FILE = `${DATA_DIR}/tasks.db`
+// Derive data directory relative to this file's location
+const __filename = fileURLToPath(import.meta.url)
+const __dirname = dirname(__filename)
+const PLUGIN_ROOT = join(__dirname, "..", "..")
+const DATA_DIR = join(PLUGIN_ROOT, "data")
+const DB_FILE = join(DATA_DIR, "tasks.db")
 
 interface Task {
   id: string
@@ -310,7 +316,7 @@ const TaskPanel = (props: { api: TuiPluginApi; sessionID: () => string; theme: T
         <StatRow
           theme={props.theme}
           label="Total"
-          value={String(snapshot().length)}
+          value={String(filteredTasks().length)}
         />
         <StatRow
           theme={props.theme}
