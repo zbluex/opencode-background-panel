@@ -4,11 +4,17 @@
 import type { Plugin, PluginInput } from "@opencode-ai/plugin"
 import { loadTasks, persist, getTask, setTask, getAllTasks } from "./repo/Database.js"
 import { readFileSync, existsSync, writeFileSync } from "fs"
+import { fileURLToPath } from "url"
+import { dirname, join } from "path"
+import { homedir } from "os"
 
 console.log("[BTP] Server plugin module loaded")
 
-// Config path
-const CONFIG_FILE = "C:/Users/zbluex/.config/opencode/background-panel.jsonc"
+// Derive config path relative to user config directory
+// Uses ~/.config/opencode/ for portability across platforms
+const __filename = fileURLToPath(import.meta.url)
+const __dirname = dirname(__filename)
+const CONFIG_FILE = join(homedir(), ".config", "opencode", "background-panel.jsonc")
 
 // Skip task patterns
 let skipTaskPatterns: RegExp[] = []
@@ -223,26 +229,16 @@ async function handleEvent(event: any) {
     console.log("[BTP] DB should now have this task")
   }
 
-  else if (type === "session.complete") {
+  // session.idle - fires when a subagent session completes (agent finished responding)
+  // This is the correct event for marking tasks as completed (replaces non-existent session.complete)
+  else if (type === "session.idle") {
     const sessionId = properties.sessionID
     const title = properties.info?.title
-    const parentID = properties.info?.parentID
 
-    console.log("[BTP] === SESSION.COMPLETE DEBUG ===")
-    console.log("[BTP] Full event properties:", JSON.stringify(properties, null, 2))
-    console.log("[BTP] sessionId:", sessionId)
-    console.log("[BTP] title:", title)
-    console.log("[BTP] parentID:", parentID)
-    console.log("[BTP] ================================")
+    console.log("[BTP] session.idle for session:", sessionId, "title:", title)
 
     if (!sessionId) {
-      console.log("[BTP] No sessionID in session.complete event")
-      return
-    }
-
-    // Only track tasks that have a parentID (subagent sessions)
-    if (!parentID) {
-      console.log("[BTP] session.complete for non-subagent session, ignoring:", title)
+      console.log("[BTP] No sessionID in session.idle event")
       return
     }
 
@@ -252,12 +248,12 @@ async function handleEvent(event: any) {
         task.status = "completed"
         task.updatedAt = Date.now()
         setTask(task)
-        console.log("[BTP] Task completed:", task.id, task.title)
+        console.log("[BTP] Task completed via session.idle:", task.id, task.title)
       } else {
         console.log("[BTP] Task not in running state:", task.status)
       }
     } else {
-      console.log("[BTP] Task not found for session.complete:", sessionId)
+      console.log("[BTP] Task not found for session.idle:", sessionId)
     }
   }
 
@@ -291,14 +287,6 @@ async function handleEvent(event: any) {
         console.log("[BTP] Task failed via session.status (多次重试):", task.id, task.title)
       }
     }
-  }
-
-  else if (type === "session.idle") {
-    // session.idle fires when a session is WAITING, not when it's complete
-    // Do NOT mark tasks as completed here - use session.complete instead
-    const sessionId = properties.sessionID
-    const title = properties.info?.title
-    console.log("[BTP] session.idle (waiting) for session:", sessionId, "title:", title)
   }
 
   else if (type === "session.error") {

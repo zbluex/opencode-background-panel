@@ -3,9 +3,16 @@
 
 import { Database as BunDatabase } from "bun:sqlite"
 import { existsSync, mkdirSync } from "fs"
+import { fileURLToPath } from "url"
+import { dirname, join } from "path"
 
-const DATA_DIR = "C:/Users/zbluex/.config/opencode/plugins/background-task-panel/data"
-const DB_FILE = `${DATA_DIR}/tasks.db`
+// Derive data directory relative to this file's location
+// This avoids hardcoded user paths and makes the plugin portable
+const __filename = fileURLToPath(import.meta.url)
+const __dirname = dirname(__filename)
+const PLUGIN_ROOT = join(__dirname, "..", "..")
+const DATA_DIR = join(PLUGIN_ROOT, "data")
+const DB_FILE = join(DATA_DIR, "tasks.db")
 
 // Task interface
 export interface Task {
