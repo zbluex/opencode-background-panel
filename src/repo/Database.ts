@@ -2,9 +2,10 @@
 // bun:sqlite is built into Bun runtime and supports WAL mode for concurrent access
 
 import { Database as BunDatabase } from "bun:sqlite"
-import { existsSync, mkdirSync } from "fs"
+import { existsSync, mkdirSync, readFileSync } from "fs"
 import { fileURLToPath } from "url"
 import { dirname, join } from "path"
+import { homedir } from "os"
 
 // Derive data directory relative to this file's location
 // This avoids hardcoded user paths and makes the plugin portable
@@ -13,6 +14,38 @@ const __dirname = dirname(__filename)
 const PLUGIN_ROOT = join(__dirname, "..", "..")
 const DATA_DIR = join(PLUGIN_ROOT, "data")
 const DB_FILE = join(DATA_DIR, "tasks.db")
+const CONFIG_FILE = join(homedir(), ".config", "opencode", "background-panel.jsonc")
+
+// Log level: DEBUG > INFO > ERROR
+type LogLevel = "DEBUG" | "INFO" | "ERROR"
+let logLevel: LogLevel = "ERROR"
+
+function btpLog(level: LogLevel, ...args: any[]): void {
+  const levels: LogLevel[] = ["DEBUG", "INFO", "ERROR"]
+  const current = levels.indexOf(logLevel)
+  const message = levels.indexOf(level)
+  if (message >= current) {
+    console.log("[BTP] [" + level + "]", ...args)
+  }
+}
+
+// Load log level from config
+function loadLogLevel(): void {
+  try {
+    if (existsSync(CONFIG_FILE)) {
+      const content = readFileSync(CONFIG_FILE, "utf-8")
+      const cleanContent = content
+        .replace(/\/\/.*$/gm, "")
+        .replace(/\/\*[\s\S]*?\*\//g, "")
+      const config = JSON.parse(cleanContent)
+      logLevel = (config.log_level as LogLevel) || "ERROR"
+    }
+  } catch (e) {
+    // Use default ERROR level
+  }
+}
+
+loadLogLevel()
 
 // Task interface
 export interface Task {
@@ -36,7 +69,7 @@ let db: BunDatabase | null = null
 function ensureDataDir() {
   if (!existsSync(DATA_DIR)) {
     mkdirSync(DATA_DIR, { recursive: true })
-    console.log("[BTP] Created data directory:", DATA_DIR)
+    btpLog("INFO", "Created data directory:", DATA_DIR)
   }
 }
 
@@ -47,13 +80,13 @@ function initDb(): void {
   ensureDataDir()
 
   try {
-    console.log("[BTP] Initializing bun:sqlite...")
+    btpLog("DEBUG", "Initializing bun:sqlite...")
 
     if (existsSync(DB_FILE)) {
-      console.log("[BTP] Opening existing DB file")
+      btpLog("DEBUG", "Opening existing DB file")
       db = new BunDatabase(DB_FILE)
     } else {
-      console.log("[BTP] Creating new DB file")
+      btpLog("INFO", "Creating new DB file")
       db = new BunDatabase(DB_FILE)
       db.exec(`
         CREATE TABLE IF NOT EXISTS tasks (
@@ -72,11 +105,11 @@ function initDb(): void {
 
     // Enable WAL mode for better concurrency
     db.run("PRAGMA journal_mode=WAL")
-    console.log("[BTP] Journal mode:", db.query("PRAGMA journal_mode").get())
+    btpLog("DEBUG", "Journal mode:", db.query("PRAGMA journal_mode").get())
 
-    console.log("[BTP] bun:sqlite initialized successfully")
+    btpLog("DEBUG", "bun:sqlite initialized successfully")
   } catch (e: any) {
-    console.log("[BTP] InitDb error:", e?.message || e)
+    btpLog("ERROR", "InitDb error:", e?.message || e)
   }
 }
 
@@ -101,7 +134,7 @@ export function loadTasks(): void {
   initDb()
 
   if (!db) {
-    console.log("[BTP] DB not initialized after initDb() - using in-memory fallback")
+    btpLog("ERROR", "DB not initialized after initDb() - using in-memory fallback")
     return
   }
 
@@ -129,7 +162,7 @@ export function loadTasks(): void {
       // Clean orphaned tasks
       if (task.pid && task.status === "running") {
         if (!isProcessRunning(task.pid)) {
-          console.log("[BTP] Deleting orphaned task (PID", task.pid, "not running):", task.title)
+          btpLog("DEBUG", "Deleting orphaned task (PID", task.pid, "not running):", task.title)
           db.prepare("DELETE FROM tasks WHERE id = ?").run(task.id)
           deletedCount++
           continue
@@ -139,9 +172,9 @@ export function loadTasks(): void {
       memoryStore.set(task.id, task)
     }
 
-    console.log("[BTP] Loaded", memoryStore.size, "tasks from DB")
+    btpLog("INFO", "Loaded", memoryStore.size, "tasks from DB")
   } catch (e) {
-    console.log("[BTP] Error loading tasks:", e)
+    btpLog("ERROR", "Error loading tasks:", e)
   }
 }
 
@@ -177,7 +210,7 @@ export function setTask(task: Task): void {
         task.pid || null
       )
     } catch (e) {
-      console.log("[BTP] setTask error:", e)
+      btpLog("ERROR", "setTask error:", e)
     }
   }
 }
@@ -189,7 +222,7 @@ export function deleteTask(id: string): void {
     try {
       db.prepare("DELETE FROM tasks WHERE id = ?").run(id)
     } catch (e) {
-      console.log("[BTP] deleteTask error:", e)
+      btpLog("ERROR", "deleteTask error:", e)
     }
   }
 }
@@ -224,7 +257,7 @@ export function queryTasks(): Task[] {
       pid: row.pid
     }))
   } catch (e) {
-    console.log("[BTP] queryTasks error:", e)
+    btpLog("ERROR", "queryTasks error:", e)
     return []
   }
 }

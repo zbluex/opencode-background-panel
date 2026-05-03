@@ -15,7 +15,8 @@ const POLL_INTERVAL_MS = 1000
 // Derive data directory relative to this file's location
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = dirname(__filename)
-const PLUGIN_ROOT = join(__dirname, "..", "..")
+// sidebar-content.tsx is at src/tui/slots/, so 3 levels up to plugin root
+const PLUGIN_ROOT = join(__dirname, "..", "..", "..")
 const DATA_DIR = join(PLUGIN_ROOT, "data")
 const DB_FILE = join(DATA_DIR, "tasks.db")
 const CONFIG_FILE = join(homedir(), ".config", "opencode", "background-panel.jsonc")
@@ -29,7 +30,7 @@ function btpLog(level: LogLevel, ...args: any[]): void {
   const current = levels.indexOf(logLevel)
   const message = levels.indexOf(level)
   if (message >= current) {
-    console.log("[BTP]", ...args)
+    console.log("[BTP] [" + level + "]", ...args)
   }
 }
 
@@ -67,18 +68,23 @@ interface Task {
 async function readTasksFromDb(): Promise<Task[]> {
   try {
     const fs = await import("fs")
+    btpLog("DEBUG", "DB_FILE path:", DB_FILE)
+    btpLog("DEBUG", "DB_FILE exists:", fs.existsSync(DB_FILE))
     if (!fs.existsSync(DB_FILE)) {
+      btpLog("DEBUG", "DB file not found, returning cached tasks:", cachedTasks.length)
       return cachedTasks.length > 0 ? cachedTasks : []
     }
 
     // Always read DB to get latest data
     const stat = fs.statSync(DB_FILE)
+    btpLog("DEBUG", "DB file size:", stat.size, "bytes")
 
     // Open DB with bun:sqlite (readonly mode for TUI)
     const db = new BunSqlite(DB_FILE)
 
     const tasks: Task[] = []
     const rows = db.query("SELECT * FROM tasks ORDER BY updatedAt DESC").all() as any[]
+    btpLog("DEBUG", "Query returned", rows.length, "rows")
 
     for (const row of rows) {
       tasks.push({

@@ -23,12 +23,3 @@ export interface ITaskServerPlugin {
   getTasks(since?: number): Promise<Task[]>
   getTask(id: string): Promise<Task | null>
 }
-
-export interface ITaskRepository {
-  insert(task: Task): Promise<void>
-  update(task: Task): Promise<void>
-  findById(id: string): Promise<Task | null>
-  findAll(): Promise<Task[]>
-  findSince(timestamp: number): Promise<Task[]>
-  delete(id: string): Promise<void>
-}

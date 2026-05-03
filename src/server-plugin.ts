@@ -23,7 +23,7 @@ function btpLog(level: LogLevel, ...args: any[]): void {
   const current = levels.indexOf(logLevel)
   const message = levels.indexOf(level)
   if (message >= current) {
-    console.log("[BTP]", ...args)
+    console.log("[BTP] [" + level + "]", ...args)
   }
 }
 
@@ -86,6 +86,8 @@ function shouldSkipTask(title: string): boolean {
 
 // Load config on startup
 loadConfig()
+
+btpLog("INFO", "Server plugin module loaded")
 
 // Task interface - re-exported from Database
 interface Task {
