@@ -5,6 +5,8 @@ import type { TuiSlotPlugin, TuiPluginApi, TuiThemeCurrent } from "@opencode-ai/
 import { Database as BunSqlite } from "bun:sqlite"
 import { fileURLToPath } from "url"
 import { dirname, join } from "path"
+import { homedir } from "os"
+import { existsSync, readFileSync } from "fs"
 
 const SINGLE_BORDER = { type: "single" } as any
 const TIME_UPDATE_INTERVAL_MS = 500
@@ -16,6 +18,38 @@ const __dirname = dirname(__filename)
 const PLUGIN_ROOT = join(__dirname, "..", "..")
 const DATA_DIR = join(PLUGIN_ROOT, "data")
 const DB_FILE = join(DATA_DIR, "tasks.db")
+const CONFIG_FILE = join(homedir(), ".config", "opencode", "background-panel.jsonc")
+
+// Log level: DEBUG > INFO > ERROR
+type LogLevel = "DEBUG" | "INFO" | "ERROR"
+let logLevel: LogLevel = "ERROR"
+
+function btpLog(level: LogLevel, ...args: any[]): void {
+  const levels: LogLevel[] = ["DEBUG", "INFO", "ERROR"]
+  const current = levels.indexOf(logLevel)
+  const message = levels.indexOf(level)
+  if (message >= current) {
+    console.log("[BTP]", ...args)
+  }
+}
+
+// Load config for log level (synchronous)
+function loadConfig(): void {
+  try {
+    if (existsSync(CONFIG_FILE)) {
+      const content = readFileSync(CONFIG_FILE, "utf-8")
+      const cleanContent = content
+        .replace(/\/\/.*$/gm, "")
+        .replace(/\/\*[\s\S]*?\*\//g, "")
+      const config = JSON.parse(cleanContent)
+      logLevel = (config.log_level as LogLevel) || "ERROR"
+    }
+  } catch (e) {
+    // Use default ERROR level
+  }
+}
+
+loadConfig()
 
 interface Task {
   id: string
@@ -61,14 +95,14 @@ async function readTasksFromDb(): Promise<Task[]> {
     }
 
     db.close()
-    console.log("[BTP] TUI: Read", tasks.length, "tasks from DB")
+    btpLog("DEBUG", "TUI: Read", tasks.length, "tasks from DB")
 
     // Update cache
     cachedTasks = tasks
-    console.log("[BTP] TUI: Cache updated with", tasks.length, "tasks")
+    btpLog("DEBUG", "TUI: Cache updated with", tasks.length, "tasks")
     return tasks
   } catch (e) {
-    console.log("[BTP] TUI read error:", e)
+    btpLog("ERROR", "TUI read error:", e)
     // Return cached tasks on error to prevent clearing
     return cachedTasks.length > 0 ? cachedTasks : []
   }
@@ -77,7 +111,7 @@ async function readTasksFromDb(): Promise<Task[]> {
 // Module-level state - cache tasks to prevent clearing on errors
 let cachedTasks: Task[] = []
 
-  // Format relative time
+// Format relative time
 function formatRelativeTime(timestamp: number): string {
   const seconds = Math.floor((Date.now() - timestamp) / 1000)
   if (seconds < 60) return `${seconds}s ago`
@@ -140,11 +174,11 @@ const TaskPanel = (props: { api: TuiPluginApi; sessionID: () => string; theme: T
 
   // Start polling on mount
   createEffect(() => {
-    console.log("[BTP] TUI panel mounting, starting poll...")
+    btpLog("DEBUG", "TUI panel mounting, starting poll...")
 
     readTasksFromDb().then(tasks => {
       setSnapshot(tasks)
-      console.log("[BTP] Initial tasks loaded:", tasks.length)
+      btpLog("DEBUG", "Initial tasks loaded:", tasks.length)
     })
 
     pollTimer = setInterval(async () => {
@@ -160,17 +194,17 @@ const TaskPanel = (props: { api: TuiPluginApi; sessionID: () => string; theme: T
   onCleanup(() => {
     if (timeUpdateTimer) clearInterval(timeUpdateTimer)
     if (pollTimer) clearInterval(pollTimer)
-    console.log("[BTP] TUI panel unmounting, stopped polling")
+    btpLog("DEBUG", "TUI panel unmounting, stopped polling")
   })
 
   const handleTaskClick = (task: Task) => {
-    console.log("[BTP] Navigating to task session:", task.sessionId)
+    btpLog("DEBUG", "Navigating to task session:", task.sessionId)
     props.api.route.navigate("session", { sessionID: task.sessionId })
   }
 
   const toggleFilter = () => {
     setFilterMode(prev => prev === "all" ? "session" : "all")
-    console.log("[BTP] Filter mode:", filterMode())
+    btpLog("DEBUG", "Filter mode:", filterMode())
   }
 
   // Filter tasks based on current session
@@ -179,7 +213,7 @@ const TaskPanel = (props: { api: TuiPluginApi; sessionID: () => string; theme: T
     const currentSession = props.sessionID()
     const tasks = snapshot()
 
-    console.log("[BTP] Filter mode:", mode, "currentSession:", currentSession, "total tasks:", tasks.length)
+    btpLog("DEBUG", "Filter mode:", mode, "currentSession:", currentSession, "total tasks:", tasks.length)
 
     if (mode === "session") {
       // Show tasks created BY current session (parent) or FOR current session (child)
@@ -187,7 +221,7 @@ const TaskPanel = (props: { api: TuiPluginApi; sessionID: () => string; theme: T
         t.parentSessionId === currentSession ||
         t.sessionId === currentSession
       )
-      console.log("[BTP] Session filtered:", filtered.length, "tasks")
+      btpLog("DEBUG", "Session filtered:", filtered.length, "tasks")
       return filtered
     }
     return tasks

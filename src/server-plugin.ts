@@ -8,13 +8,24 @@ import { fileURLToPath } from "url"
 import { dirname, join } from "path"
 import { homedir } from "os"
 
-console.log("[BTP] Server plugin module loaded")
-
 // Derive config path relative to user config directory
 // Uses ~/.config/opencode/ for portability across platforms
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = dirname(__filename)
 const CONFIG_FILE = join(homedir(), ".config", "opencode", "background-panel.jsonc")
+
+// Log level: DEBUG > INFO > ERROR
+type LogLevel = "DEBUG" | "INFO" | "ERROR"
+let logLevel: LogLevel = "ERROR"
+
+function btpLog(level: LogLevel, ...args: any[]): void {
+  const levels: LogLevel[] = ["DEBUG", "INFO", "ERROR"]
+  const current = levels.indexOf(logLevel)
+  const message = levels.indexOf(level)
+  if (message >= current) {
+    console.log("[BTP]", ...args)
+  }
+}
 
 // Skip task patterns
 let skipTaskPatterns: RegExp[] = []
@@ -23,20 +34,23 @@ let skipTaskPatterns: RegExp[] = []
 function loadConfig(): void {
   try {
     if (!existsSync(CONFIG_FILE)) {
-      console.log("[BTP] Config file not found, creating default at", CONFIG_FILE)
+      btpLog("INFO", "Config file not found, creating default at", CONFIG_FILE)
       const defaultConfig = `{
-  // Skip task patterns - titles matching these regex patterns will be skipped
-  // Examples:
-  //   "magic-context-compartment" - skip magic context compartments
-  //   "^test" - skip tasks starting with "test"
-  //   ".*ignore.*" - skip tasks containing "ignore"
-  "skip_tasks": []
+// Log level: DEBUG, INFO, or ERROR (default: ERROR)
+"log_level": "ERROR",
+
+// Skip task patterns - titles matching these regex patterns will be skipped
+// Examples:
+//   "magic-context-compartment" - skip magic context compartments
+//   "^test" - skip tasks starting with "test"
+//   ".*ignore.*" - skip tasks containing "ignore"
+"skip_tasks": []
 }
 `
       try {
         writeFileSync(CONFIG_FILE, defaultConfig, "utf-8")
       } catch (e) {
-        console.log("[BTP] Failed to create config file:", e)
+        btpLog("ERROR", "Failed to create config file:", e)
       }
       skipTaskPatterns = []
       return
@@ -49,12 +63,13 @@ function loadConfig(): void {
       .replace(/\/\*[\s\S]*?\*\//g, "")
 
     const config = JSON.parse(cleanContent)
+    logLevel = (config.log_level as LogLevel) || "ERROR"
     const patterns: string[] = config.skip_tasks || []
 
     skipTaskPatterns = patterns.map(p => new RegExp(p))
-    console.log("[BTP] Loaded", skipTaskPatterns.length, "skip patterns:", patterns)
+    btpLog("INFO", "Loaded config, log level:", logLevel, ", skip patterns:", patterns)
   } catch (e) {
-    console.log("[BTP] Config load error:", e)
+    btpLog("ERROR", "Config load error:", e)
     skipTaskPatterns = []
   }
 }
@@ -107,7 +122,7 @@ async function checkSessionStatus(sessionId: string): Promise<{ status: string; 
       return { status: session.status, type: session.type }
     }
   } catch (e) {
-    console.log("[BTP] Failed to check session status:", e)
+    btpLog("ERROR", "Failed to check session status:", e)
   }
   return null
 }
@@ -118,11 +133,11 @@ async function refreshRunningTasks(): Promise<void> {
   const runningTasks = tasks.filter(t => t.status === "running")
 
   if (runningTasks.length === 0) {
-    console.log("[BTP] No running tasks to refresh")
+    btpLog("INFO", "No running tasks to refresh")
     return
   }
 
-  console.log("[BTP] Refreshing", runningTasks.length, "running tasks via session.status() API...")
+  btpLog("DEBUG", "Refreshing", runningTasks.length, "running tasks via session.status() API...")
 
   // Call session.status() to get all active session statuses
   const timeoutMs = 5000
@@ -134,7 +149,7 @@ async function refreshRunningTasks(): Promise<void> {
       new Promise((_, reject) => setTimeout(() => reject(new Error("timeout")), timeoutMs))
     ])
   } catch (e: any) {
-    console.log("[BTP] Session status API error:", e.message)
+    btpLog("ERROR", "Session status API error:", e.message)
     return
   }
 
@@ -142,14 +157,14 @@ async function refreshRunningTasks(): Promise<void> {
   // SDK wraps it in { data: { "200": { sessionId: { type } } } }
   const statusData = statusResult?.data?.["200"] || {}
   const activeSessionIds = Object.keys(statusData)
-  console.log("[BTP] Active sessions:", activeSessionIds)
+  btpLog("DEBUG", "Active sessions:", activeSessionIds)
 
   for (const task of runningTasks) {
-    console.log("[BTP] Checking task:", task.sessionId, task.title)
+    btpLog("DEBUG", "Checking task:", task.sessionId, task.title)
 
     // If sessionId is NOT in active sessions, it has failed (not completed)
     if (!activeSessionIds.includes(task.sessionId)) {
-      console.log("[BTP] Session not in active list -> marking as FAILED:", task.sessionId)
+      btpLog("DEBUG", "Session not in active list -> marking as FAILED:", task.sessionId)
       task.status = "failed"
       task.updatedAt = Date.now()
       setTask(task)
@@ -159,18 +174,18 @@ async function refreshRunningTasks(): Promise<void> {
     // Session is active - check its status
     const sessionStatus = statusData[task.sessionId]
     if (sessionStatus) {
-      console.log("[BTP] Session status:", task.sessionId, sessionStatus.type)
+      btpLog("DEBUG", "Session status:", task.sessionId, sessionStatus.type)
 
       if (sessionStatus.type === "idle") {
         task.status = "completed"
         task.updatedAt = Date.now()
         setTask(task)
-        console.log("[BTP] Task marked completed:", task.title)
+        btpLog("DEBUG", "Task marked completed:", task.title)
       } else if (sessionStatus.type === "retry" && sessionStatus.attempt >= 3) {
         task.status = "failed"
         task.updatedAt = Date.now()
         setTask(task)
-        console.log("[BTP] Task marked failed (retry):", task.title)
+        btpLog("DEBUG", "Task marked failed (retry):", task.title)
       }
       // "busy" sessions remain running
     }
@@ -180,37 +195,37 @@ async function refreshRunningTasks(): Promise<void> {
 async function handleEvent(event: any) {
   const { type, properties = {} } = event
 
-  console.log("[BTP] Event received:", type, "sessionID:", properties.sessionID)
+  btpLog("INFO", "Event received:", type, "sessionID:", properties.sessionID)
 
   if (type === "session.created") {
     const sessionId = properties.sessionID || properties.info?.id
     const title = properties.info?.title
     const parentID = properties.info?.parentID
 
-    console.log("[BTP] === SESSION.CREATED DEBUG ===")
-    console.log("[BTP] Full event properties:", JSON.stringify(properties, null, 2))
-    console.log("[BTP] sessionId:", sessionId)
-    console.log("[BTP] title:", title)
-    console.log("[BTP] parentID:", parentID)
-    console.log("[BTP] ==================================")
+    btpLog("DEBUG", "=== SESSION.CREATED DEBUG ===")
+    btpLog("DEBUG", "Full event properties:", JSON.stringify(properties, null, 2))
+    btpLog("DEBUG", "sessionId:", sessionId)
+    btpLog("DEBUG", "title:", title)
+    btpLog("DEBUG", "parentID:", parentID)
+    btpLog("DEBUG", "==================================")
 
     // Filter out tasks matching skip patterns
     if (shouldSkipTask(title)) {
-      console.log("[BTP] Skipping task (matched skip pattern):", title)
+      btpLog("DEBUG", "Skipping task (matched skip pattern):", title)
       return
     }
 
     if (!sessionId) {
-      console.log("[BTP] No sessionId in session.created event")
+      btpLog("ERROR", "No sessionId in session.created event")
       return
     }
 
     if (!parentID) {
-      console.log("[BTP] NOT creating task - no parentID. Title:", title)
+      btpLog("DEBUG", "NOT creating task - no parentID. Title:", title)
       return
     }
 
-    console.log("[BTP] Creating task for subagent session...")
+    btpLog("INFO", "Creating task for subagent session...")
 
     const task: Task = {
       id: sessionId,
@@ -225,8 +240,7 @@ async function handleEvent(event: any) {
     }
 
     setTask(task)
-    console.log("[BTP] Task created:", task.id, task.title, "parent:", parentID || "none")
-    console.log("[BTP] DB should now have this task")
+    btpLog("INFO", "Task created:", task.id, task.title, "parent:", parentID || "none")
   }
 
   // session.idle - fires when a subagent session completes (agent finished responding)
@@ -235,10 +249,10 @@ async function handleEvent(event: any) {
     const sessionId = properties.sessionID
     const title = properties.info?.title
 
-    console.log("[BTP] session.idle for session:", sessionId, "title:", title)
+    btpLog("DEBUG", "session.idle for session:", sessionId, "title:", title)
 
     if (!sessionId) {
-      console.log("[BTP] No sessionID in session.idle event")
+      btpLog("ERROR", "No sessionID in session.idle event")
       return
     }
 
@@ -248,19 +262,19 @@ async function handleEvent(event: any) {
         task.status = "completed"
         task.updatedAt = Date.now()
         setTask(task)
-        console.log("[BTP] Task completed via session.idle:", task.id, task.title)
+        btpLog("INFO", "Task completed via session.idle:", task.id, task.title)
       } else {
-        console.log("[BTP] Task not in running state:", task.status)
+        btpLog("DEBUG", "Task not in running state:", task.status)
       }
     } else {
-      console.log("[BTP] Task not found for session.idle:", sessionId)
+      btpLog("ERROR", "Task not found for session.idle:", sessionId)
     }
   }
 
   else if (type === "session.status") {
     const sessionId = properties.sessionID
     const status = properties.status
-    console.log("[BTP] session.status for session:", sessionId, "status:", JSON.stringify(status))
+    btpLog("DEBUG", "session.status for session:", sessionId, "status:", JSON.stringify(status))
 
     // Track status changes to detect completion
     if (!sessionId) return
@@ -276,7 +290,7 @@ async function handleEvent(event: any) {
         task.status = "completed"
         task.updatedAt = Date.now()
         setTask(task)
-        console.log("[BTP] Task completed via session.status:", task.id, task.title)
+        btpLog("INFO", "Task completed via session.status:", task.id, task.title)
       }
     } else if (statusType === "retry" && status.attempt >= 3) {
       // Multiple retries indicate failure
@@ -284,7 +298,7 @@ async function handleEvent(event: any) {
         task.status = "failed"
         task.updatedAt = Date.now()
         setTask(task)
-        console.log("[BTP] Task failed via session.status (多次重试):", task.id, task.title)
+        btpLog("INFO", "Task failed via session.status (多次重试):", task.id, task.title)
       }
     }
   }
@@ -292,39 +306,39 @@ async function handleEvent(event: any) {
   else if (type === "session.error") {
     const sessionId = properties.sessionID
     if (!sessionId) {
-      console.log("[BTP] No sessionID in session.error event")
+      btpLog("ERROR", "No sessionID in session.error event")
       return
     }
 
-    console.log("[BTP] session.error for session:", sessionId)
+    btpLog("ERROR", "session.error for session:", sessionId)
 
     const task = getTask(sessionId)
     if (task) {
       task.status = "failed"
       task.updatedAt = Date.now()
       setTask(task)
-      console.log("[BTP] Task failed:", task.id, task.title)
+      btpLog("ERROR", "Task failed:", task.id, task.title)
     }
   }
 
   else {
-    console.log("[BTP] Unhandled event type:", type)
+    btpLog("DEBUG", "Unhandled event type:", type)
   }
 }
 
 // HOOKS PATTERN - This is the correct way to receive events
 const serverPlugin: Plugin = async (input: PluginInput) => {
-  console.log("[BTP] Server plugin starting with Hooks pattern...")
+  btpLog("INFO", "Server plugin starting with Hooks pattern...")
 
   // Store client for API calls
   pluginClient = input.client
-  console.log("[BTP] Client available:", !!pluginClient)
+  btpLog("INFO", "Client available:", !!pluginClient)
 
   // Load tasks from SQLite
   loadTasks()
 
   // Try to refresh running tasks status via API (may timeout)
-  refreshRunningTasks().catch(e => console.log("[BTP] Refresh error:", e.message))
+  refreshRunningTasks().catch(e => btpLog("ERROR", "Refresh error:", e.message))
 
   // Return hooks object - OpenCode will call our event handler
   return {
