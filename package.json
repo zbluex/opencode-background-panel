@@ -1,6 +1,6 @@
 {
   "name": "@zbluex/opencode-background-panel",
-  "version": "0.2.14",
+  "version": "0.2.15",
   "type": "module",
   "description": "OpenCode TUI plugin showing real-time background task list",
   "homepage": "https://github.com/zbluex/opencode-background-panel",
