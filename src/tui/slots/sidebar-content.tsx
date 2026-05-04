@@ -7,6 +7,7 @@ import { fileURLToPath } from "url"
 import { dirname, join } from "path"
 import { homedir } from "os"
 import { existsSync, readFileSync } from "fs"
+import packageJson from "../../../package.json"
 
 const SINGLE_BORDER = { type: "single" } as any
 const TIME_UPDATE_INTERVAL_MS = 500
@@ -271,7 +272,7 @@ const TaskPanel = (props: { api: TuiPluginApi; sessionID: () => string; theme: T
             <b>Tasks {filterMode() === "session" ? "[Session]" : "[All]"}</b>
           </text>
         </box>
-        <text fg={props.theme.textMuted}>v0.2.3</text>
+        <text fg={props.theme.textMuted}>v{packageJson.version}</text>
       </box>
 
       {/* Running section */}
