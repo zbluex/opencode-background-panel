@@ -17,8 +17,8 @@ export const DB_FILE = join(DATA_DIR, "tasks.db")
 const CONFIG_FILE = join(homedir(), ".config", "opencode", "background-panel.jsonc")
 
 // Log level: DEBUG > INFO > ERROR
-type LogLevel = "DEBUG" | "INFO" | "ERROR"
-let logLevel: LogLevel = "ERROR"
+type LogLevel = "DEBUG" | "INFO" | "ERROR" | "NONE"
+let logLevel: LogLevel = "NONE"
 
 function btpLog(level: LogLevel, ...args: any[]): void {
   const levels: LogLevel[] = ["DEBUG", "INFO", "ERROR"]
@@ -38,7 +38,7 @@ function loadLogLevel(): void {
         .replace(/\/\/.*$/gm, "")
         .replace(/\/\*[\s\S]*?\*\//g, "")
       const config = JSON.parse(cleanContent)
-      logLevel = (config.log_level as LogLevel) || "ERROR"
+      logLevel = (config.log_level as LogLevel) || "NONE"
     }
   } catch (e) {
     // Use default ERROR level

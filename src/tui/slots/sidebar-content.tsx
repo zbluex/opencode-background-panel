@@ -27,8 +27,8 @@ let DATA_DIR = DATA_DIR_FALLBACK
 let DB_FILE = DB_FILE_FALLBACK
 
 // Log level: DEBUG > INFO > ERROR
-type LogLevel = "DEBUG" | "INFO" | "ERROR"
-let logLevel: LogLevel = "ERROR"
+type LogLevel = "DEBUG" | "INFO" | "ERROR" | "NONE"
+let logLevel: LogLevel = "NONE"
 
 function btpLog(level: LogLevel, ...args: any[]): void {
   const levels: LogLevel[] = ["DEBUG", "INFO", "ERROR"]
@@ -48,7 +48,7 @@ function loadConfig(): void {
         .replace(/\/\/.*$/gm, "")
         .replace(/\/\*[\s\S]*?\*\//g, "")
       const config = JSON.parse(cleanContent)
-      logLevel = (config.log_level as LogLevel) || "ERROR"
+      logLevel = (config.log_level as LogLevel) || "NONE"
 
       // Use data paths from config if available (set by server plugin)
       if (config.data_dir) {

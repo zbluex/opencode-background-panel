@@ -37,7 +37,7 @@ function loadConfig(): void {
     if (!existsSync(CONFIG_FILE)) {
       btpLog("INFO", "Config file not found, creating default at", CONFIG_FILE)
       const defaultConfig = `{
-// Log level: DEBUG, INFO, ERROR, or NONE (default: ERROR)
+// Log level: DEBUG, INFO, ERROR, NONE (default: NONE)
 "log_level": "NONE",
 
 // Skip task patterns - titles matching these regex patterns will be skipped
@@ -68,7 +68,7 @@ function loadConfig(): void {
       .replace(/\/\*[\s\S]*?\*\//g, "")
 
     const config = JSON.parse(cleanContent)
-    logLevel = (config.log_level as LogLevel) || "ERROR"
+    logLevel = (config.log_level as LogLevel) || "NONE"
     const patterns: string[] = config.skip_tasks || []
 
     skipTaskPatterns = patterns.map(p => new RegExp(p))
