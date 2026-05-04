@@ -1,18 +1,18 @@
 {
   "name": "@zbluex/opencode-background-panel",
-  "version": "0.2.6",
+  "version": "0.2.7",
   "type": "module",
   "description": "OpenCode TUI plugin showing real-time background task list",
-  "main": "src/tui/index.tsx",
-  "types": "src/tui/index.tsx",
+  "main": "src/index.ts",
+  "types": "src/index.ts",
   "files": [
     "src",
     "README.md"
   ],
   "exports": {
     ".": {
-      "types": "./src/tui/index.tsx",
-      "import": "./src/tui/index.tsx"
+      "types": "./src/index.ts",
+      "import": "./src/index.ts"
     },
     "./tui": {
       "types": "./src/tui/index.tsx",
