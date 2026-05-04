@@ -31,6 +31,7 @@ type LogLevel = "DEBUG" | "INFO" | "ERROR" | "NONE"
 let logLevel: LogLevel = "NONE"
 
 function btpLog(level: LogLevel, ...args: any[]): void {
+  if (logLevel === "NONE") return
   const levels: LogLevel[] = ["DEBUG", "INFO", "ERROR"]
   const current = levels.indexOf(logLevel)
   const message = levels.indexOf(level)

@@ -353,13 +353,6 @@ async function handleEvent(event) {
         setTask(task);
         btpLog2("INFO", "Task completed via session.status:", task.id, task.title);
       }
-    } else if (statusType === "retry" && status.attempt >= 3) {
-      if (task.status === "running") {
-        task.status = "failed";
-        task.updatedAt = Date.now();
-        setTask(task);
-        btpLog2("INFO", "Task failed via session.status (\u591A\u6B21\u91CD\u8BD5):", task.id, task.title);
-      }
     }
   } else if (type === "session.error") {
     const sessionId = properties.sessionID;

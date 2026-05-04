@@ -302,7 +302,7 @@ async function handleEvent(event: any) {
 
     // Parse status type
     const statusType = status?.type
-    // idle = session finished normally, retry with high attempt count = failed
+    // idle = session finished normally
     if (statusType === "idle") {
       // Session is no longer busy - mark as completed if running
       if (task.status === "running") {
@@ -310,14 +310,6 @@ async function handleEvent(event: any) {
         task.updatedAt = Date.now()
         setTask(task)
         btpLog("INFO", "Task completed via session.status:", task.id, task.title)
-      }
-    } else if (statusType === "retry" && status.attempt >= 3) {
-      // Multiple retries indicate failure
-      if (task.status === "running") {
-        task.status = "failed"
-        task.updatedAt = Date.now()
-        setTask(task)
-        btpLog("INFO", "Task failed via session.status (多次重试):", task.id, task.title)
       }
     }
   }
