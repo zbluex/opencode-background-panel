@@ -14,11 +14,12 @@ const __filename = fileURLToPath(import.meta.url)
 const __dirname = dirname(__filename)
 const CONFIG_FILE = join(homedir(), ".config", "opencode", "background-panel.jsonc")
 
-// Log level: DEBUG > INFO > ERROR
-type LogLevel = "DEBUG" | "INFO" | "ERROR"
+// Log level: DEBUG > INFO > ERROR > NONE (no output)
+type LogLevel = "DEBUG" | "INFO" | "ERROR" | "NONE"
 let logLevel: LogLevel = "ERROR"
 
 function btpLog(level: LogLevel, ...args: any[]): void {
+  if (logLevel === "NONE") return
   const levels: LogLevel[] = ["DEBUG", "INFO", "ERROR"]
   const current = levels.indexOf(logLevel)
   const message = levels.indexOf(level)
@@ -36,7 +37,7 @@ function loadConfig(): void {
     if (!existsSync(CONFIG_FILE)) {
       btpLog("INFO", "Config file not found, creating default at", CONFIG_FILE)
       const defaultConfig = `{
-// Log level: DEBUG, INFO, or ERROR (default: ERROR)
+// Log level: DEBUG, INFO, ERROR, or NONE (default: ERROR)
 "log_level": "ERROR",
 
 // Skip task patterns - titles matching these regex patterns will be skipped
