@@ -39,7 +39,7 @@ OpenCode 会自动从 npm 下载并安装。
 ```jsonc
 {
   // 日志级别: DEBUG, INFO, ERROR, NONE (默认: NONE，不输出任何日志)
-  "log_level": "ERROR",
+  "log_level": "NONE",
 
   // 跳过任务标题匹配这些正则模式的任务
   // 示例:
