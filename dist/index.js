@@ -13,7 +13,7 @@ var PLUGIN_ROOT = join(__dirname2, "..", "..");
 var DATA_DIR = join(PLUGIN_ROOT, "data");
 var DB_FILE = join(DATA_DIR, "tasks.db");
 var CONFIG_FILE = join(homedir(), ".config", "opencode", "background-panel.jsonc");
-var logLevel = "ERROR";
+var logLevel = "NONE";
 function btpLog(level, ...args) {
   const levels = ["DEBUG", "INFO", "ERROR"];
   const current = levels.indexOf(logLevel);
@@ -28,7 +28,7 @@ function loadLogLevel() {
       const content = readFileSync(CONFIG_FILE, "utf-8");
       const cleanContent = content.replace(/\/\/.*$/gm, "").replace(/\/\*[\s\S]*?\*\//g, "");
       const config = JSON.parse(cleanContent);
-      logLevel = config.log_level || "ERROR";
+      logLevel = config.log_level || "NONE";
     }
   } catch (e) {}
 }
@@ -155,8 +155,10 @@ import { homedir as homedir2 } from "os";
 var __filename3 = fileURLToPath2(import.meta.url);
 var __dirname3 = dirname2(__filename3);
 var CONFIG_FILE2 = join2(homedir2(), ".config", "opencode", "background-panel.jsonc");
-var logLevel2 = "ERROR";
+var logLevel2 = "NONE";
 function btpLog2(level, ...args) {
+  if (logLevel2 === "NONE")
+    return;
   const levels = ["DEBUG", "INFO", "ERROR"];
   const current = levels.indexOf(logLevel2);
   const message = levels.indexOf(level);
@@ -170,8 +172,8 @@ function loadConfig() {
     if (!existsSync2(CONFIG_FILE2)) {
       btpLog2("INFO", "Config file not found, creating default at", CONFIG_FILE2);
       const defaultConfig = `{
-// Log level: DEBUG, INFO, or ERROR (default: ERROR)
-"log_level": "ERROR",
+// Log level: DEBUG, INFO, ERROR, NONE (default: NONE)
+"log_level": "NONE",
 
 // Skip task patterns - titles matching these regex patterns will be skipped
 // Examples:
@@ -196,7 +198,7 @@ function loadConfig() {
     const content = readFileSync2(CONFIG_FILE2, "utf-8");
     const cleanContent = content.replace(/\/\/.*$/gm, "").replace(/\/\*[\s\S]*?\*\//g, "");
     const config = JSON.parse(cleanContent);
-    logLevel2 = config.log_level || "ERROR";
+    logLevel2 = config.log_level || "NONE";
     const patterns = config.skip_tasks || [];
     skipTaskPatterns = patterns.map((p) => new RegExp(p));
     btpLog2("INFO", "Loaded config, log level:", logLevel2, ", skip patterns:", patterns);
