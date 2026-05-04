@@ -12,8 +12,8 @@ import { homedir } from "os"
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = dirname(__filename)
 const PLUGIN_ROOT = join(__dirname, "..", "..")
-const DATA_DIR = join(PLUGIN_ROOT, "data")
-const DB_FILE = join(DATA_DIR, "tasks.db")
+export const DATA_DIR = join(PLUGIN_ROOT, "data")
+export const DB_FILE = join(DATA_DIR, "tasks.db")
 const CONFIG_FILE = join(homedir(), ".config", "opencode", "background-panel.jsonc")
 
 // Log level: DEBUG > INFO > ERROR

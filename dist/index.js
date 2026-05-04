@@ -178,7 +178,11 @@ function loadConfig() {
 //   "magic-context-compartment" - skip magic context compartments
 //   "^test" - skip tasks starting with "test"
 //   ".*ignore.*" - skip tasks containing "ignore"
-"skip_tasks": []
+"skip_tasks": [],
+
+// Data directory - managed by the plugin, do not edit
+"data_dir": "${DATA_DIR.replace(/\\/g, "\\\\")}",
+"db_file": "${DB_FILE.replace(/\\/g, "\\\\")}"
 }
 `;
       try {
@@ -196,6 +200,16 @@ function loadConfig() {
     const patterns = config.skip_tasks || [];
     skipTaskPatterns = patterns.map((p) => new RegExp(p));
     btpLog2("INFO", "Loaded config, log level:", logLevel2, ", skip patterns:", patterns);
+    if (!config.data_dir || config.data_dir !== DATA_DIR) {
+      try {
+        const updatedConfig = { ...config, data_dir: DATA_DIR, db_file: DB_FILE };
+        const newContent = JSON.stringify(updatedConfig, null, 2);
+        writeFileSync(CONFIG_FILE2, newContent, "utf-8");
+        btpLog2("INFO", "Updated config with data_dir:", DATA_DIR);
+      } catch (e) {
+        btpLog2("ERROR", "Failed to update config with data_dir:", e);
+      }
+    }
   } catch (e) {
     btpLog2("ERROR", "Config load error:", e);
     skipTaskPatterns = [];

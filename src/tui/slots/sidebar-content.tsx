@@ -12,14 +12,18 @@ const SINGLE_BORDER = { type: "single" } as any
 const TIME_UPDATE_INTERVAL_MS = 500
 const POLL_INTERVAL_MS = 1000
 
-// Derive data directory relative to this file's location
+// Derive data directory - will be overridden by config if available
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = dirname(__filename)
-// sidebar-content.tsx is at src/tui/slots/, so 3 levels up to plugin root
-const PLUGIN_ROOT = join(__dirname, "..", "..", "..")
-const DATA_DIR = join(PLUGIN_ROOT, "data")
-const DB_FILE = join(DATA_DIR, "tasks.db")
+// Default: sidebar-content.tsx is at src/tui/slots/, so 3 levels up to plugin root
+const PLUGIN_ROOT_FALLBACK = join(__dirname, "..", "..", "..")
+const DATA_DIR_FALLBACK = join(PLUGIN_ROOT_FALLBACK, "data")
+const DB_FILE_FALLBACK = join(DATA_DIR_FALLBACK, "tasks.db")
 const CONFIG_FILE = join(homedir(), ".config", "opencode", "background-panel.jsonc")
+
+// Actual paths - will be set by loadConfig
+let DATA_DIR = DATA_DIR_FALLBACK
+let DB_FILE = DB_FILE_FALLBACK
 
 // Log level: DEBUG > INFO > ERROR
 type LogLevel = "DEBUG" | "INFO" | "ERROR"
@@ -34,7 +38,7 @@ function btpLog(level: LogLevel, ...args: any[]): void {
   }
 }
 
-// Load config for log level (synchronous)
+// Load config for log level and data paths (synchronous)
 function loadConfig(): void {
   try {
     if (existsSync(CONFIG_FILE)) {
@@ -44,9 +48,21 @@ function loadConfig(): void {
         .replace(/\/\*[\s\S]*?\*\//g, "")
       const config = JSON.parse(cleanContent)
       logLevel = (config.log_level as LogLevel) || "ERROR"
+
+      // Use data paths from config if available (set by server plugin)
+      if (config.data_dir) {
+        DATA_DIR = config.data_dir
+      }
+      if (config.db_file) {
+        DB_FILE = config.db_file
+      }
+      btpLog("DEBUG", "Config loaded - data_dir:", DATA_DIR, "db_file:", DB_FILE)
+    } else {
+      btpLog("DEBUG", "Config not found, using fallback paths - data_dir:", DATA_DIR)
     }
   } catch (e) {
-    // Use default ERROR level
+    btpLog("ERROR", "Config load error:", e)
+    // Use default ERROR level and fallback paths
   }
 }
 

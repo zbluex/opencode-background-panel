@@ -2,7 +2,7 @@
 // Uses the Hooks pattern to receive events from OpenCode
 
 import type { Plugin, PluginInput } from "@opencode-ai/plugin"
-import { loadTasks, persist, getTask, setTask, getAllTasks } from "./repo/Database.js"
+import { loadTasks, persist, getTask, setTask, getAllTasks, DATA_DIR, DB_FILE } from "./repo/Database.js"
 import { readFileSync, existsSync, writeFileSync } from "fs"
 import { fileURLToPath } from "url"
 import { dirname, join } from "path"
@@ -44,7 +44,11 @@ function loadConfig(): void {
 //   "magic-context-compartment" - skip magic context compartments
 //   "^test" - skip tasks starting with "test"
 //   ".*ignore.*" - skip tasks containing "ignore"
-"skip_tasks": []
+"skip_tasks": [],
+
+// Data directory - managed by the plugin, do not edit
+"data_dir": "${DATA_DIR.replace(/\\/g, "\\\\")}",
+"db_file": "${DB_FILE.replace(/\\/g, "\\\\")}"
 }
 `
       try {
@@ -68,6 +72,18 @@ function loadConfig(): void {
 
     skipTaskPatterns = patterns.map(p => new RegExp(p))
     btpLog("INFO", "Loaded config, log level:", logLevel, ", skip patterns:", patterns)
+
+    // Ensure data_dir is in config (for TUI to read)
+    if (!config.data_dir || config.data_dir !== DATA_DIR) {
+      try {
+        const updatedConfig = { ...config, data_dir: DATA_DIR, db_file: DB_FILE }
+        const newContent = JSON.stringify(updatedConfig, null, 2)
+        writeFileSync(CONFIG_FILE, newContent, "utf-8")
+        btpLog("INFO", "Updated config with data_dir:", DATA_DIR)
+      } catch (e) {
+        btpLog("ERROR", "Failed to update config with data_dir:", e)
+      }
+    }
   } catch (e) {
     btpLog("ERROR", "Config load error:", e)
     skipTaskPatterns = []
