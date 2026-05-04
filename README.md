@@ -21,7 +21,7 @@
 
 ## 安装
 
-### npm 自动安装（推荐）
+在 `opencode.jsonc` 中添加插件即可：
 
 ```jsonc
 // opencode.jsonc
@@ -30,24 +30,7 @@
 }
 ```
 
-OpenCode 会自动从 npm 下载并安装最新版本。
-
-### 手动安装
-
-```bash
-# 克隆仓库
-git clone https://github.com/zbluex/opencode-background-panel.git
-cd opencode-background-panel
-
-# 安装依赖并构建
-npm install
-npm run build
-
-# 在 opencode.jsonc 中引用本地路径（可选）
-{
-  "plugin": ["./plugins/opencode-background-panel"]
-}
-```
+OpenCode 会自动从 npm 下载并安装。
 
 ## 配置
 
