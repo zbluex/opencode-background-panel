@@ -16,7 +16,7 @@ const CONFIG_FILE = join(homedir(), ".config", "opencode", "background-panel.jso
 
 // Log level: DEBUG > INFO > ERROR > NONE (no output)
 type LogLevel = "DEBUG" | "INFO" | "ERROR" | "NONE"
-let logLevel: LogLevel = "ERROR"
+let logLevel: LogLevel = "NONE"
 
 function btpLog(level: LogLevel, ...args: any[]): void {
   if (logLevel === "NONE") return
@@ -38,7 +38,7 @@ function loadConfig(): void {
       btpLog("INFO", "Config file not found, creating default at", CONFIG_FILE)
       const defaultConfig = `{
 // Log level: DEBUG, INFO, ERROR, or NONE (default: ERROR)
-"log_level": "ERROR",
+"log_level": "NONE",
 
 // Skip task patterns - titles matching these regex patterns will be skipped
 // Examples:
