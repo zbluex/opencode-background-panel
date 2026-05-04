@@ -3,7 +3,7 @@
 [![npm](https://img.shields.io/npm/v/@zbluex/opencode-background-panel)](https://www.npmjs.com/package/@zbluex/opencode-background-panel)
 [![MIT License](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 
-**OpenCode TUI 插件，在侧边栏实时显示后台任务执行状态，支持点击跳转查看。**
+**OpenCode TUI 插件，在侧边栏实时显示后台任务执行状态，点击即可跳转查看。**
 
 [npm](https://www.npmjs.com/package/@zbluex/opencode-background-panel) · [GitHub](https://github.com/zbluex/opencode-background-panel) · [功能介绍](#功能特点) · [安装](#安装) · [配置](#配置) · [开发](#开发)
 
