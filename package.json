@@ -3,6 +3,15 @@
   "version": "0.2.23",
   "type": "module",
   "description": "OpenCode TUI plugin showing real-time background task list",
+  "keywords": [
+    "opencode",
+    "opencode-plugin",
+    "tui",
+    "sidebar",
+    "background-tasks",
+    "task-manager",
+    "sqlite"
+  ],
   "license": "MIT",
   "homepage": "https://github.com/zbluex/opencode-background-panel",
   "main": "dist/index.js",
