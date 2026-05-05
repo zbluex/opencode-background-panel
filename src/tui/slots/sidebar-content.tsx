@@ -276,9 +276,12 @@ const TaskPanel = (props: { api: TuiPluginApi; sessionID: () => string; theme: T
         <text fg={props.theme.textMuted}>v{packageJson.version}</text>
       </box>
 
-      {/* Stats line under header */}
-      <box width="100%" marginTop={1} flexDirection="row" justifyContent="space-between">
-        <text fg={props.theme.textMuted}>📊 T:{filteredTasks().length}  ▶ R:{runningTasks().length}  ✓ C:{completedTasks().length}  ✗ F:{failedTasks().length}</text>
+      {/* Stats line under header - evenly distributed */}
+      <box width="100%" marginTop={1} flexDirection="row" justifyContent="space-between" alignItems="center">
+        <text fg={props.theme.textMuted} flexShrink={0}>📊 T:{filteredTasks().length}</text>
+        <text fg={props.theme.warning} flexShrink={0}>▶ R:{runningTasks().length}</text>
+        <text fg={props.theme.success} flexShrink={0}>✓ C:{completedTasks().length}</text>
+        <text fg={props.theme.error} flexShrink={0}>✗ F:{failedTasks().length}</text>
       </box>
 
       {/* Running section */}
