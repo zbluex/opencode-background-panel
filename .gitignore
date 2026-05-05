@@ -2,3 +2,4 @@
 data/tasks.db
 data/tasks.db-shm
 data/tasks.db-walnode_modules
+node_modules

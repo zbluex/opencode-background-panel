@@ -7,6 +7,7 @@ import { readFileSync, existsSync, writeFileSync } from "fs"
 import { fileURLToPath } from "url"
 import { dirname, join } from "path"
 import { homedir } from "os"
+import { ensureTuiPluginEntry } from "./shared/tui-config.js"
 
 // Derive config path relative to user config directory
 // Uses ~/.config/opencode/ for portability across platforms
@@ -103,6 +104,9 @@ function shouldSkipTask(title: string): boolean {
 
 // Load config on startup
 loadConfig()
+
+// Auto-register TUI plugin entry in tui.json (so sidebar loads)
+ensureTuiPluginEntry()
 
 btpLog("INFO", "Server plugin module loaded")
 

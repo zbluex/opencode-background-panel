@@ -33,7 +33,9 @@
   "peerDependencies": {
     "@opencode-ai/plugin": ">=1.2.0"
   },
-  "dependencies": {},
+  "dependencies": {
+    "comment-json": "^5.0.0"
+  },
   "devDependencies": {
     "@opencode-ai/plugin": ">=1.2.0",
     "@opentui/solid": ">=0.1.95",
