@@ -1,5 +1,6 @@
 # SQLite database files
 data/tasks.db
 data/tasks.db-shm
-data/tasks.db-walnode_modules
+data/tasks.db-wal
 node_modules
+package-lock.json
