@@ -142,16 +142,17 @@ session.error              →  任务失败 (failed)
 **要求:** Bun ≥ 1.0
 
 ```bash
-npm install              # 安装依赖
-npm run build            # 构建插件（输出 dist/）
-npm run typecheck        # 类型检查
-npm run lint             # 代码检查（预留）
+bun install              # 安装依赖
+bun run build            # 构建 Server bundle（dist/index.js）
+bun run typecheck        # 类型检查
 ```
+
+> TUI 插件代码在 `src/tui/`，通过 `exports` 字段从源码直接加载，无需单独构建。
+> 修改 TUI 文件后重启 OpenCode 即可生效。
 
 构建产物：
 
-- `dist/index.js` — Server bundle（不含 JSX）
-- `dist/tui/index.js` — TUI bundle
+- `dist/index.js` — Server bundle（Bun 构建，不含 JSX）
 
 ## License
 
