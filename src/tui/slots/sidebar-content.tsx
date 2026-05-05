@@ -276,6 +276,11 @@ const TaskPanel = (props: { api: TuiPluginApi; sessionID: () => string; theme: T
         <text fg={props.theme.textMuted}>v{packageJson.version}</text>
       </box>
 
+      {/* Stats line under header */}
+      <box width="100%" marginTop={1} flexDirection="row" justifyContent="space-between">
+        <text fg={props.theme.textMuted}>📊 T:{filteredTasks().length}  ✓ C:{completedTasks().length}  ✗ F:{failedTasks().length}</text>
+      </box>
+
       {/* Running section */}
       <box width="100%" marginTop={1} flexDirection="row" justifyContent="space-between">
         <text fg={props.theme.text}>
@@ -369,26 +374,6 @@ const TaskPanel = (props: { api: TuiPluginApi; sessionID: () => string; theme: T
         )}
       </box>
 
-      {/* Stats footer */}
-      <box width="100%" marginTop={1} border={{ top: { style: "single" } }} paddingTop={1}>
-        <StatRow
-          theme={props.theme}
-          label="Total"
-          value={String(filteredTasks().length)}
-        />
-        <StatRow
-          theme={props.theme}
-          label="Completed"
-          value={String(completedTasks().length)}
-          dim
-        />
-        <StatRow
-          theme={props.theme}
-          label="Failed"
-          value={String(failedTasks().length)}
-          dim
-        />
-      </box>
     </box>
   )
 }
