@@ -1,6 +1,6 @@
 {
   "name": "opencode-background-panel",
-  "version": "0.2.17",
+  "version": "0.2.18",
   "type": "module",
   "description": "OpenCode TUI plugin showing real-time background task list",
   "license": "MIT",
