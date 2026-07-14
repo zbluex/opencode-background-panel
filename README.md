@@ -19,6 +19,8 @@
 - **🖥️ 自适应终端** — 自动检测终端宽度，响应式布局
 - **💾 SQLite 持久化** — 使用 WAL 模式存储，支持 Server/TUI 并发读写
 - **⚙️ 灵活配置** — 支持跳过指定任务标题、自定义日志级别
+- **✅ OpenTUI 0.4.x 兼容** — 支持 OpenCode v1.17.20+ 虚拟运行时注册表，自动探测适配
+- **💾 持久化存储** — 数据库位于 `~/.config/opencode/background-panel/`，npm 更新不丢失数据
 
 ## 安装
 
@@ -52,8 +54,7 @@ OpenCode 会自动从 npm 下载并安装。
   "skip_tasks": [],
 
   // 数据目录（自动管理，请勿手动编辑）
-  "data_dir": "...",
-  "db_file": "..."
+  // 持久化在 ~/.config/opencode/background-panel/ 下，npm 更新不丢失
 }
 ```
 
@@ -64,22 +65,26 @@ OpenCode 会自动从 npm 下载并安装。
 ```
 opencode-background-panel/
 ├── src/
-│   ├── index.ts              # 插件入口，导出 server/tui
-│   ├── server-plugin.ts     # Server Plugin — 监听事件，持久化任务到 SQLite
+│   ├── index.ts                # 插件入口，导出 server/tui
+│   ├── server-plugin.ts       # Server Plugin — 监听事件，持久化任务到 SQLite
 │   ├── repo/
-│   │   └── Database.ts      # SQLite 数据库封装（WAL 模式）
+│   │   └── Database.ts        # SQLite 数据库封装（WAL 模式）
 │   ├── shared/
-│   │   ├── types.ts         # 共享类型定义
-│   │   └── tui-config.ts    # tui.json 自动注册（server 启动时写入插件入口）
-│   └── tui/
-│       ├── index.tsx        # TUI Plugin — 注册侧边栏插槽
+│   │   ├── types.ts           # 共享类型定义
+│   │   └── tui-config.ts      # tui.json 自动注册
+│   ├── tui/
+│   │   ├── entry.mjs          # 运行时探测适配器
+│   │   ├── index.tsx          # TUI 入口 (raw TSX, 旧版回退)
+│   │   └── slots/
+│   │       └── sidebar-content.tsx  # UI 渲染 (raw, 旧版回退)
+│   └── tui-compiled/
+│       ├── index.tsx          # TUI 入口 (编译, OpenTUI 0.4.x)
 │       └── slots/
-│           └── sidebar-content.tsx  # 侧边栏 UI 渲染
+│           └── sidebar-content.tsx  # UI 渲染 (编译, DOM expressions)
 ├── dist/
-│   ├── index.js              # Server bundle（无 JSX）
-│   └── tui/
-│       └── index.js         # TUI bundle
-└── package.json
+│   └── index.js               # Server bundle (Bun 构建)
+├── package.json
+└── README.md
 ```
 
 ### Server Plugin (`dist/index.js`)
@@ -96,13 +101,49 @@ opencode-background-panel/
 - 支持 JSONC 注释（使用 `comment-json` 库），写入时保留原有注释格式
 - 智能去重：检测已有入口则跳过，不会重复添加
 
-### TUI Plugin (`src/tui/index.tsx`)
+### TUI Plugin (`src/tui/entry.mjs` → `src/tui-compiled/`)
+
+TUI 插件使用**双路径加载架构**，通过 `package.json` 的 `./tui` exports 暴露入口：
+
+```jsonc
+"./tui": {
+  "types": "./src/tui/index.tsx",
+  "import": "./src/tui/entry.mjs"
+}
+```
+
+#### 加载流程
+
+`entry.mjs` 运行时探测 OpenTUI 0.4.x 虚拟注册表：
+
+```
+entry.mjs
+  │
+  ├─ import('opentui:runtime-module:@opentui/solid')
+  │  │
+  │  ├─ 成功 → src/tui-compiled/index.tsx
+  │  │   └─ _$createElement / _$insertNode / _$setProp 从 runtime-module: 协议加载
+  │  │
+  │  └─ 失败 → src/tui/index.tsx (raw TSX 回退)
+  │      └─ @jsxImportSource @opentui/solid，从 node_modules 加载
+  └─
+```
+
+#### 编译文件 (`src/tui-compiled/`)
+
+针对 OpenCode v1.17.20+ 的 OpenTUI 0.4.x 虚拟运行时注册表优化：
+
+- 使用 `opentui:runtime-module:` 协议导入 `@opentui/solid` 的 DOM expressions 函数
+- 手动调用 `_$createElement(tag)` / `_$insertNode(parent, child)` / `_$setProp(node, name, value)`
+- 响应式属性通过 `_$effect` + `_$setProp` 4th `prev` 参数实现
+- 不含 JSX 语法，避免运行时 transpilation 和子路径解析问题
+
+#### 功能
 
 - 在侧边栏 `sidebar_content` 插槽渲染任务面板
 - 每秒轮询数据库获取最新任务状态
 - 支持点击任务跳转到对应 session
 - 标题栏点击切换 `[Session]` / `[All]` 过滤模式
-- **统计行** — Tasks 标题下方均匀分布 Total / Running / Completed / Failed 计数
 - 版本号从 `package.json` 动态读取
 
 ### 任务生命周期
@@ -117,15 +158,14 @@ session.error              →  任务失败 (failed)
 ## 界面
 
 ```
-┌─ Tasks [Session] ─────────── v{x.y.z} ───┐
-│ 📊 T:12    ▶ R:3    ✓ C:8    ✗ F:2      │
-│ Running: 3 active                       │
-│  ▶ Sub-task analysis         30s ago     │
-│  Completed                              │
-│  ✓ Report generation         2m ago      │
-│  Failed                                 │
-│  ✗ Deploy to prod            5m ago      │
-└──────────────────────────────────────────┘
+┌─ Tasks [Session] ─────────── v{x.y.z} ────────┐
+│ Running: 3 active                             │
+│  ▶ Sub-task analysis             30s ago      │
+│  Completed                                   │
+│  ✓ Report generation             2m ago       │
+│  Failed                                      │
+│  ✗ Deploy to prod                5m ago       │
+└───────────────────────────────────────────────┘
 ```
 
 ## 命令
@@ -134,9 +174,7 @@ session.error              →  任务失败 (failed)
 |------|------|
 | 点击任务 | 跳转到对应 session |
 | 点击 `[Session]` / `[All]` | 切换当前 session / 全局过滤 |
-| 点击统计行 | — |
-| 滚动列表 | 查看更多任务 |
-
+| 上下滚动 | 查看更多任务 |
 ## 开发
 
 **要求:** Bun ≥ 1.0
@@ -146,14 +184,13 @@ bun install              # 安装依赖
 bun run build            # 构建 Server bundle（dist/index.js）
 bun run typecheck        # 类型检查
 ```
-
-> TUI 插件代码在 `src/tui/`，通过 `exports` 字段从源码直接加载，无需单独构建。
+> TUI 插件通过 `exports` 字段从源码直接加载，无需单独构建。
 > 修改 TUI 文件后重启 OpenCode 即可生效。
+> 若修改了 `src/tui-compiled/` 下的文件，需重新 `npm publish` 发布新版本。
 
 构建产物：
 
 - `dist/index.js` — Server bundle（Bun 构建，不含 JSX）
-
 ## License
 
 MIT
