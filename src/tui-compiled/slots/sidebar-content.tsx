@@ -172,15 +172,11 @@ const StatRow = (props: { theme: any; label: string; value: string; accent?: boo
   _$setProp(_el, "justifyContent", "space-between")
   
   const _label = _$createElement("text")
-  _$setProp(_label, "fg", () => props.theme.text)
+  _$setProp(_label, "fg", props.theme.text)
   _$insert(_label, () => props.label)
   
   const _value = _$createElement("text")
-  _$setProp(_value, "fg", () =>
-    props.dim ? props.theme.textMuted
-      : props.accent ? props.theme.accent
-        : props.theme.text
-  )
+  _$setProp(_value, "fg", props.theme.textMuted)
   _$insert(_value, () => props.value)
   
   _$insert(_el, _label)
@@ -257,7 +253,7 @@ const TaskPanel = (props: { api: any; sessionID: () => string; theme: any }) => 
   _$setProp(_root, "width", "100%")
   _$setProp(_root, "flexDirection", "column")
   _$setProp(_root, "border", SINGLE_BORDER)
-  _$setProp(_root, "borderColor", () => props.theme.borderActive)
+  _$setProp(_root, "borderColor", props.theme.borderActive)
   _$setProp(_root, "paddingTop", 1)
   _$setProp(_root, "paddingBottom", 1)
   _$setProp(_root, "paddingLeft", 1)
@@ -272,18 +268,18 @@ const TaskPanel = (props: { api: any; sessionID: () => string; theme: any }) => 
   const _filterBtn = _$createElement("box")
   _$setProp(_filterBtn, "paddingLeft", 1)
   _$setProp(_filterBtn, "paddingRight", 1)
-  _$setProp(_filterBtn, "backgroundColor", () => props.theme.accent)
+  _$setProp(_filterBtn, "backgroundColor", props.theme.accent)
   _$setProp(_filterBtn, "onMouseDown", toggleFilter)
   
   const _filterText = _$createElement("text")
-  _$setProp(_filterText, "fg", () => props.theme.background)
+  _$setProp(_filterText, "fg", props.theme.background)
   const _filterBold = _$createElement("b")
   _$insert(_filterBold, () => "Tasks " + (filterMode() === "session" ? "[Session]" : "[All]"))
   _$insert(_filterText, _filterBold)
   _$insert(_filterBtn, _filterText)
 
   const _versionText = _$createElement("text")
-  _$setProp(_versionText, "fg", () => props.theme.textMuted)
+  _$setProp(_versionText, "fg", props.theme.textMuted)
   _$insert(_versionText, "v" + packageJson.version)
 
   _$insert(_headerRow, _filterBtn)
