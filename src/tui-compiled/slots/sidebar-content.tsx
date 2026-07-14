@@ -21,8 +21,8 @@ const POLL_INTERVAL_MS = 1000
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = dirname(__filename)
-const PLUGIN_ROOT_FALLBACK = join(__dirname, "..", "..", "..")
-const DATA_DIR_FALLBACK = join(PLUGIN_ROOT_FALLBACK, "data")
+const CONFIG_DIR = join(homedir(), ".config", "opencode", "background-panel")
+const DATA_DIR_FALLBACK = CONFIG_DIR
 const DB_FILE_FALLBACK = join(DATA_DIR_FALLBACK, "tasks.db")
 const CONFIG_FILE = join(homedir(), ".config", "opencode", "background-panel.jsonc")
 

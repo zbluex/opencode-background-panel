@@ -2,18 +2,21 @@
 // bun:sqlite is built into Bun runtime and supports WAL mode for concurrent access
 
 import { Database as BunDatabase } from "bun:sqlite"
-import { existsSync, mkdirSync, readFileSync } from "fs"
+import { existsSync, mkdirSync, readFileSync, copyFileSync } from "fs"
 import { fileURLToPath } from "url"
 import { dirname, join } from "path"
 import { homedir } from "os"
 
-// Derive data directory relative to this file's location
-// This avoids hardcoded user paths and makes the plugin portable
-const __filename = fileURLToPath(import.meta.url)
-const __dirname = dirname(__filename)
-const PLUGIN_ROOT = join(__dirname, "..", "..")
-export const DATA_DIR = join(PLUGIN_ROOT, "data")
+// Use persistent location outside of npm package directory
+// so npm install doesn't delete the database
+const APP_DATA_DIR = join(homedir(), ".config", "opencode", "background-panel")
+export const DATA_DIR = APP_DATA_DIR
 export const DB_FILE = join(DATA_DIR, "tasks.db")
+
+// Old data directory (inside npm package - deleted on npm install)
+const OLD_PLUGIN_ROOT = join(__dirname, "..", "..")
+const OLD_DATA_DIR = join(OLD_PLUGIN_ROOT, "data")
+const OLD_DB_FILE = join(OLD_DATA_DIR, "tasks.db")
 const CONFIG_FILE = join(homedir(), ".config", "opencode", "background-panel.jsonc")
 
 // Log level: DEBUG > INFO > ERROR
@@ -72,11 +75,35 @@ function ensureDataDir() {
     btpLog("INFO", "Created data directory:", DATA_DIR)
   }
 }
+// Migrate database from old npm package data/ dir to persistent location
+function migrateFromOldLocation() {
+  if (existsSync(DB_FILE)) {
+    // New location already has a DB, nothing to migrate
+    btpLog("DEBUG", "DB exists at persistent location:", DB_FILE)
+    return
+  }
+  if (!existsSync(OLD_DB_FILE)) {
+    // No old DB to migrate
+    return
+  }
+  btpLog("INFO", "Migrating DB from old location:", OLD_DB_FILE, "->", DB_FILE)
+  ensureDataDir()
+  try {
+    copyFileSync(OLD_DB_FILE, DB_FILE)
+    // Also copy WAL and SHM if they exist
+    const wal = OLD_DB_FILE + "-wal"; const shm = OLD_DB_FILE + "-shm"
+    if (existsSync(wal)) copyFileSync(wal, DB_FILE + "-wal")
+    if (existsSync(shm)) copyFileSync(shm, DB_FILE + "-shm")
+    btpLog("INFO", "Migration complete")
+  } catch (e) {
+    btpLog("ERROR", "Migration failed:", e)
+  }
+}
 
 // Initialize database
 function initDb(): void {
   if (db) return
-
+  migrateFromOldLocation()
   ensureDataDir()
 
   try {

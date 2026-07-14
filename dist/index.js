@@ -7872,15 +7872,16 @@ var require_src2 = __commonJS((exports, module) => {
 
 // src/repo/Database.ts
 import { Database as BunDatabase } from "bun:sqlite";
-import { existsSync, mkdirSync, readFileSync } from "fs";
-import { fileURLToPath } from "url";
-import { dirname, join } from "path";
+import { existsSync, mkdirSync, readFileSync, copyFileSync } from "fs";
+import { join } from "path";
 import { homedir } from "os";
-var __filename2 = fileURLToPath(import.meta.url);
-var __dirname2 = dirname(__filename2);
-var PLUGIN_ROOT = join(__dirname2, "..", "..");
-var DATA_DIR = join(PLUGIN_ROOT, "data");
+var __dirname = "C:\\Users\\zbluex\\.config\\opencode\\plugins\\opencode-background-panel\\src\\repo";
+var APP_DATA_DIR = join(homedir(), ".config", "opencode", "background-panel");
+var DATA_DIR = APP_DATA_DIR;
 var DB_FILE = join(DATA_DIR, "tasks.db");
+var OLD_PLUGIN_ROOT = join(__dirname, "..", "..");
+var OLD_DATA_DIR = join(OLD_PLUGIN_ROOT, "data");
+var OLD_DB_FILE = join(OLD_DATA_DIR, "tasks.db");
 var CONFIG_FILE = join(homedir(), ".config", "opencode", "background-panel.jsonc");
 var logLevel = "NONE";
 function btpLog(level, ...args) {
@@ -7910,9 +7911,33 @@ function ensureDataDir() {
     btpLog("INFO", "Created data directory:", DATA_DIR);
   }
 }
+function migrateFromOldLocation() {
+  if (existsSync(DB_FILE)) {
+    btpLog("DEBUG", "DB exists at persistent location:", DB_FILE);
+    return;
+  }
+  if (!existsSync(OLD_DB_FILE)) {
+    return;
+  }
+  btpLog("INFO", "Migrating DB from old location:", OLD_DB_FILE, "->", DB_FILE);
+  ensureDataDir();
+  try {
+    copyFileSync(OLD_DB_FILE, DB_FILE);
+    const wal = OLD_DB_FILE + "-wal";
+    const shm = OLD_DB_FILE + "-shm";
+    if (existsSync(wal))
+      copyFileSync(wal, DB_FILE + "-wal");
+    if (existsSync(shm))
+      copyFileSync(shm, DB_FILE + "-shm");
+    btpLog("INFO", "Migration complete");
+  } catch (e) {
+    btpLog("ERROR", "Migration failed:", e);
+  }
+}
 function initDb() {
   if (db)
     return;
+  migrateFromOldLocation();
   ensureDataDir();
   try {
     btpLog("DEBUG", "Initializing bun:sqlite...");
@@ -8018,7 +8043,7 @@ function setTask(task) {
 
 // src/server-plugin.ts
 import { readFileSync as readFileSync3, existsSync as existsSync3, writeFileSync as writeFileSync2 } from "fs";
-import { fileURLToPath as fileURLToPath2 } from "url";
+import { fileURLToPath } from "url";
 import { dirname as dirname3, join as join3 } from "path";
 import { homedir as homedir3 } from "os";
 
@@ -8085,8 +8110,8 @@ function ensureTuiPluginEntry() {
 }
 
 // src/server-plugin.ts
-var __filename3 = fileURLToPath2(import.meta.url);
-var __dirname3 = dirname3(__filename3);
+var __filename2 = fileURLToPath(import.meta.url);
+var __dirname2 = dirname3(__filename2);
 var CONFIG_FILE2 = join3(homedir3(), ".config", "opencode", "background-panel.jsonc");
 var logLevel2 = "NONE";
 function btpLog2(level, ...args) {
