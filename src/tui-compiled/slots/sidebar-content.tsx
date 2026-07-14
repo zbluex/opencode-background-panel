@@ -2,8 +2,10 @@ import { createElement as _$createElement } from "opentui:runtime-module:%40open
 import { createComponent as _$createComponent } from "opentui:runtime-module:%40opentui%2Fsolid"
 import { setProp as _$setProp } from "opentui:runtime-module:%40opentui%2Fsolid"
 import { insert as _$insert } from "opentui:runtime-module:%40opentui%2Fsolid"
+import { insertNode as _$insertNode } from "opentui:runtime-module:%40opentui%2Fsolid"
 import { createTextNode as _$createTextNode } from "opentui:runtime-module:%40opentui%2Fsolid"
 import { memo as _$memo } from "opentui:runtime-module:%40opentui%2Fsolid"
+import { effect as _$effect } from "opentui:runtime-module:%40opentui%2Fsolid"
 // @ts-nocheck
 import { createSignal, createMemo, createEffect, onCleanup } from "opentui:runtime-module:solid-js"
 import { Database as BunSqlite } from "bun:sqlite"
@@ -120,89 +122,60 @@ function getStatusIcon(status: string): string {
   }
 }
 
-// ---- Element helpers ----
+// ---- StatRow - matches magic-context's `R` component pattern exactly ----
 
-function createTextEl(fg: any, ...content: any[]) {
-  const el = _$createElement("text")
-  if (fg !== undefined) _$setProp(el, "fg", fg)
-  for (const item of content) {
-    if (typeof item === "function") _$insert(el, item)
-    else _$insert(el, item)
-  }
-  return el
-}
-
-function createBoldTextEl(fg: any, text: string) {
-  const b = _$createElement("b")
-  _$insert(b, text)
-  const el = _$createElement("text")
-  if (fg !== undefined) _$setProp(el, "fg", fg)
-  _$insert(el, b)
-  return el
-}
-
-function createBoxEl(props: Record<string, any>, ...children: any[]) {
-  const el = _$createElement("box")
-  for (const [k, v] of Object.entries(props)) {
-    _$setProp(el, k, v)
-  }
-  for (const child of children) {
-    if (child !== null && child !== undefined) {
-      _$insert(el, child)
-    }
-  }
-  return el
-}
-
-function createTaskRowEl(task: Task, fg: string, theme: any, onClick: (t: Task) => void) {
-  return createBoxEl(
-    { key: task.id, width: "100%", flexDirection: "row", paddingLeft: 1, paddingRight: 1, onMouseDown: () => onClick(task) },
-    createTextEl(fg, getStatusIcon(task.status)),
-    createTextEl(theme.text, task.title.substring(0, 20)),
-    createTextEl(theme.textMuted, formatRelativeTime(task.updatedAt))
-  )
-}
-
-// ---- Components ----
-
-const StatRow = (props: { theme: any; label: string; value: string; accent?: boolean; dim?: boolean }) => {
+const StatRow = (props: { theme: any; label: string; value: string; accent?: boolean; dim?: boolean }) => (() => {
   const _el = _$createElement("box")
+  const _lbl = _$createElement("text")
+  const _val = _$createElement("text")
+
+  _$insertNode(_el, _lbl)
+  _$insertNode(_el, _val)
+
   _$setProp(_el, "width", "100%")
   _$setProp(_el, "flexDirection", "row")
   _$setProp(_el, "justifyContent", "space-between")
-  
-  const _label = _$createElement("text")
-  _$setProp(_label, "fg", props.theme.text)
-  _$insert(_label, () => props.label)
-  
-  const _value = _$createElement("text")
-  _$setProp(_value, "fg", props.theme.textMuted)
-  _$insert(_value, () => props.value)
-  
-  _$insert(_el, _label)
-  _$insert(_el, _value)
-  return _el
-}
 
-const SectionHeader = (props: { theme: any; title: string }) => {
+  _$insert(_lbl, () => props.label)
+  _$insert(_val, () => props.value)
+
+  _$effect(_p$ => {
+    var _v$ = props.theme.text,
+        _v$2 = props.dim ? props.theme.textMuted : props.accent ? props.theme.accent : props.theme.text
+    _v$ !== _p$.e && (_p$.e = _$setProp(_lbl, "fg", _v$, _p$.e))
+    _v$2 !== _p$.t && (_p$.t = _$setProp(_val, "fg", _v$2, _p$.t))
+    return _p$
+  }, { e: undefined, t: undefined })
+
+  return _el
+})()
+
+// ---- SectionHeader ----
+
+const SectionHeader = (props: { theme: any; title: string }) => (() => {
   const _el = _$createElement("box")
+  const _text = _$createElement("text")
+  const _b = _$createElement("b")
+
+  _$insertNode(_el, _text)
+  _$insertNode(_text, _b)
   _$setProp(_el, "width", "100%")
   _$setProp(_el, "marginTop", 1)
   _$setProp(_el, "flexDirection", "row")
   _$setProp(_el, "justifyContent", "space-between")
-  
-  const _b = _$createElement("b")
-  _$insert(_b, props.title)
-  
-  const _text = _$createElement("text")
-  _$setProp(_text, "fg", props.theme.text)
-  _$insert(_text, _b)
-  
-  _$insert(_el, _text)
-  return _el
-}
+  _$insertNode(_b, _$createTextNode(props.title))
 
-const TaskPanel = (props: { api: any; sessionID: () => string; theme: any }) => {
+  _$effect(_p$ => {
+    _p$.e = _$setProp(_text, "fg", props.theme.text, _p$.e)
+    return _p$
+  }, { e: undefined })
+
+  return _el
+})()
+
+// ---- TaskPanel ----
+
+const TaskPanel = (props: { api: any; sessionID: () => string; theme: any }) => (() => {
   const [snapshot, setSnapshot] = createSignal<Task[]>([])
   const [filterMode, setFilterMode] = createSignal<"all" | "session">("session")
   let timeUpdateTimer: ReturnType<typeof setInterval> | undefined
@@ -248,115 +221,198 @@ const TaskPanel = (props: { api: any; sessionID: () => string; theme: any }) => 
   const completedTasks = createMemo(() => filteredTasks().filter(t => t.status === "completed"))
   const failedTasks = createMemo(() => filteredTasks().filter(t => t.status === "failed"))
 
-  // Build the main container
+  // Create all elements at the top (magic-context pattern)
   const _root = _$createElement("box")
+  const _headerRow = _$createElement("box")
+  const _filterBtn = _$createElement("box")
+  const _filterText = _$createElement("text")
+  const _filterBold = _$createElement("b")
+  const _versionText = _$createElement("text")
+  const _statsRow = _$createElement("box")
+  const _runningSection = _$createElement("box")
+  const _runningText = _$createElement("text")
+  const _runningBold = _$createElement("b")
+  const _runningRight = _$createElement("text")
+  const _taskList = _$createElement("box")
+
+  // Establish parent-child tree FIRST (before setProp)
+  _$insertNode(_root, _headerRow)
+  _$insertNode(_root, _statsRow)
+  _$insertNode(_root, _runningSection)
+  _$insertNode(_root, _taskList)
+
+  _$insertNode(_headerRow, _filterBtn)
+  _$insertNode(_headerRow, _versionText)
+
+  _$insertNode(_filterBtn, _filterText)
+  _$insertNode(_filterText, _filterBold)
+
+  _$insertNode(_runningSection, _runningText)
+  _$insertNode(_runningSection, _runningRight)
+  _$insertNode(_runningText, _runningBold)
+
+  // Now set static props (order relative to insertNode doesn't matter)
   _$setProp(_root, "width", "100%")
   _$setProp(_root, "flexDirection", "column")
   _$setProp(_root, "border", SINGLE_BORDER)
-  _$setProp(_root, "borderColor", props.theme.borderActive)
   _$setProp(_root, "paddingTop", 1)
   _$setProp(_root, "paddingBottom", 1)
   _$setProp(_root, "paddingLeft", 1)
   _$setProp(_root, "paddingRight", 1)
 
-  // Header row: filter button + version
-  const _headerRow = _$createElement("box")
   _$setProp(_headerRow, "flexDirection", "row")
   _$setProp(_headerRow, "justifyContent", "space-between")
   _$setProp(_headerRow, "alignItems", "center")
 
-  const _filterBtn = _$createElement("box")
   _$setProp(_filterBtn, "paddingLeft", 1)
   _$setProp(_filterBtn, "paddingRight", 1)
-  _$setProp(_filterBtn, "backgroundColor", props.theme.accent)
   _$setProp(_filterBtn, "onMouseDown", toggleFilter)
-  
-  const _filterText = _$createElement("text")
-  _$setProp(_filterText, "fg", props.theme.background)
-  const _filterBold = _$createElement("b")
-  _$insert(_filterBold, () => "Tasks " + (filterMode() === "session" ? "[Session]" : "[All]"))
-  _$insert(_filterText, _filterBold)
-  _$insert(_filterBtn, _filterText)
 
-  const _versionText = _$createElement("text")
-  _$setProp(_versionText, "fg", props.theme.textMuted)
-  _$insert(_versionText, "v" + packageJson.version)
-
-  _$insert(_headerRow, _filterBtn)
-  _$insert(_headerRow, _versionText)
-
-  // Stats row
-  const _statsRow = _$createElement("box")
   _$setProp(_statsRow, "width", "100%")
   _$setProp(_statsRow, "marginTop", 1)
   _$setProp(_statsRow, "flexDirection", "row")
   _$setProp(_statsRow, "justifyContent", "space-between")
   _$setProp(_statsRow, "alignItems", "center")
 
-  const statEls = [
-    createTextEl(() => props.theme.textMuted, "\uD83D\uDCCA T:" + filteredTasks().length),
-    createTextEl(() => props.theme.warning, "\u25B6 R:" + runningTasks().length),
-    createTextEl(() => props.theme.success, "\u2713 C:" + completedTasks().length),
-    createTextEl(() => props.theme.error, "\u2717 F:" + failedTasks().length),
-  ]
-  for (const s of statEls) _$insert(_statsRow, s)
-
-  // Running section header
-  const _runningSection = _$createElement("box")
   _$setProp(_runningSection, "width", "100%")
   _$setProp(_runningSection, "marginTop", 1)
   _$setProp(_runningSection, "flexDirection", "row")
   _$setProp(_runningSection, "justifyContent", "space-between")
 
-  _$insert(_runningSection, createBoldTextEl(() => props.theme.text, "Running"))
-  _$insert(_runningSection, () =>
-    runningTasks().length > 0
-      ? _$createElement("text", null, runningTasks().length + " active")
-      : createTextEl(() => props.theme.textMuted, "idle")
-  )
-
-  // Task list container (all running/completed/failed items)
-  const _taskList = _$createElement("box")
   _$setProp(_taskList, "flexDirection", "column")
   _$setProp(_taskList, "width", "100%")
 
-  // Reactive content: all task items
+  // Content via _$insert (reactive function accessors for dynamic values)
+  _$insert(_filterBold, () => "Tasks " + (filterMode() === "session" ? "[Session]" : "[All]"))
+  _$insert(_versionText, "v" + packageJson.version)
+  _$insertNode(_runningBold, _$createTextNode("Running"))
+  _$insert(_runningRight, () => runningTasks().length > 0 ? runningTasks().length + " active" : "idle")
+
+  // Stats row: build inline stat text elements
+  // Use _$insert with a function that creates text elements for each stat
+  _$insert(_statsRow, () => {
+    const rTotal = filteredTasks().length
+    const rRunning = runningTasks().length
+    const rCompleted = completedTasks().length
+    const rFailed = failedTasks().length
+
+    // Build one text per stat and return them as children array
+    const statText = (fg: any, text: string) => {
+      const _t = _$createElement("text")
+      _$insert(_t, text)
+      _$effect(_$p => {
+        _$p.e = _$setProp(_t, "fg", fg, _$p.e)
+        return _$p
+      }, { e: undefined })
+      return _t
+    }
+
+    return [
+      statText(props.theme.textMuted, "\uD83D\uDCCA T:" + rTotal),
+      statText(props.theme.warning, "\u25B6 R:" + rRunning),
+      statText(props.theme.success, "\u2713 C:" + rCompleted),
+      statText(props.theme.error, "\u2717 F:" + rFailed),
+    ]
+  })
+
+  // Task list content - reactive
   _$insert(_taskList, () => {
-    if (runningTasks().length === 0 && completedTasks().length === 0 && failedTasks().length === 0) {
-      return createBoxEl({ paddingLeft: 1, paddingTop: 1 },
-        createTextEl(() => props.theme.textMuted, "No tasks yet")
-      )
+    const runTasks = runningTasks()
+    const compTasks = completedTasks()
+    const failTasks = failedTasks()
+
+    // Empty state
+    if (runTasks.length === 0 && compTasks.length === 0 && failTasks.length === 0) {
+      const _box = _$createElement("box")
+      const _txt = _$createElement("text")
+      _$insertNode(_box, _txt)
+      _$setProp(_box, "paddingLeft", 1)
+      _$setProp(_box, "paddingTop", 1)
+      _$insert(_txt, "No tasks yet")
+      _$effect(_$p => {
+        _$p.e = _$setProp(_txt, "fg", props.theme.textMuted, _$p.e)
+        return _$p
+      }, { e: undefined })
+      return [_box]
     }
+
     const items: any[] = []
-    // Running
-    for (const t of runningTasks()) {
-      items.push(createTaskRowEl(t, props.theme.warning, props.theme, handleTaskClick))
+
+    // Helper to create task row
+    const mkRow = (t: Task, iconFg: any) => {
+      const _row = _$createElement("box")
+      const _icon = _$createElement("text")
+      const _title = _$createElement("text")
+      const _time = _$createElement("text")
+      _$insertNode(_row, _icon)
+      _$insertNode(_row, _title)
+      _$insertNode(_row, _time)
+      _$setProp(_row, "width", "100%")
+      _$setProp(_row, "flexDirection", "row")
+      _$setProp(_row, "paddingLeft", 1)
+      _$setProp(_row, "paddingRight", 1)
+      _$setProp(_row, "onMouseDown", () => handleTaskClick(t))
+      _$insert(_icon, getStatusIcon(t.status))
+      _$insert(_title, t.title.substring(0, 20))
+      _$insert(_time, formatRelativeTime(t.updatedAt))
+      _$effect(_$p => {
+        _$p.e = _$setProp(_icon, "fg", iconFg, _$p.e)
+        _$p.t = _$setProp(_title, "fg", props.theme.text, _$p.t)
+        _$p.a = _$setProp(_time, "fg", props.theme.textMuted, _$p.a)
+        return _$p
+      }, { e: undefined, t: undefined, a: undefined })
+      return _row
     }
-    // Completed
-    if (completedTasks().length > 0) {
+
+    // Running tasks
+    for (const t of runTasks) items.push(mkRow(t, props.theme.warning))
+
+    // Completed section
+    if (compTasks.length > 0) {
       items.push(_$createComponent(SectionHeader, { theme: props.theme, title: "Completed" }))
-      for (const t of completedTasks().slice(0, 5)) {
-        items.push(createTaskRowEl(t, props.theme.success, props.theme, handleTaskClick))
-      }
+      for (const t of compTasks.slice(0, 5)) items.push(mkRow(t, props.theme.success))
     }
-    // Failed
-    if (failedTasks().length > 0) {
+
+    // Failed section
+    if (failTasks.length > 0) {
       items.push(_$createComponent(SectionHeader, { theme: props.theme, title: "Failed" }))
-      for (const t of failedTasks().slice(0, 5)) {
-        items.push(createTaskRowEl(t, props.theme.error, props.theme, handleTaskClick))
-      }
+      for (const t of failTasks.slice(0, 5)) items.push(mkRow(t, props.theme.error))
     }
+
     return items
   })
 
-  // Assemble root
-  _$insert(_root, _headerRow)
-  _$insert(_root, _statsRow)
-  _$insert(_root, _runningSection)
-  _$insert(_root, _taskList)
+  // --- Reactive props via _$effect (theme-dependent colors) ---
+
+  _$effect(_$p => {
+    _$p.e = _$setProp(_root, "borderColor", props.theme.borderActive, _$p.e)
+    return _$p
+  }, { e: undefined })
+
+  _$effect(_$p => {
+    _$p.e = _$setProp(_filterBtn, "backgroundColor", props.theme.accent, _$p.e)
+    return _$p
+  }, { e: undefined })
+
+  _$effect(_$p => {
+    _$p.e = _$setProp(_filterText, "fg", props.theme.background, _$p.e)
+    return _$p
+  }, { e: undefined })
+
+  _$effect(_$p => {
+    _$p.e = _$setProp(_versionText, "fg", props.theme.textMuted, _$p.e)
+    return _$p
+  }, { e: undefined })
+
+  _$effect(_$p => {
+    _$p.e = _$setProp(_runningText, "fg", props.theme.text, _$p.e)
+    return _$p
+  }, { e: undefined })
 
   return _root
-}
+})()
+
+// ---- Slot registration ----
 
 export function createSidebarContentSlot(api: any) {
   return {
