@@ -6,7 +6,7 @@ import { insert as _$insert } from "opentui:runtime-module:%40opentui%2Fsolid";
 import { setProp as _$setProp } from "opentui:runtime-module:%40opentui%2Fsolid";
 import { createElement as _$createElement } from "opentui:runtime-module:%40opentui%2Fsolid";
 import { createComponent as _$createComponent } from "opentui:runtime-module:%40opentui%2Fsolid";
-/** @jsxImportSource @opentui/solid */
+/** @jsxImportSource opentui:runtime-module:%40opentui%2Fsolid */
 // @ts-nocheck
 import { createSidebarContentSlot } from "./slots/sidebar-content"
 
