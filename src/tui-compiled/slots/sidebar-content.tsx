@@ -1,12 +1,5 @@
-import { memo as _$memo } from "opentui:runtime-module:%40opentui%2Fsolid";
-import { createTextNode as _$createTextNode } from "opentui:runtime-module:%40opentui%2Fsolid";
-import { effect as _$effect } from "opentui:runtime-module:%40opentui%2Fsolid";
-import { insertNode as _$insertNode } from "opentui:runtime-module:%40opentui%2Fsolid";
-import { insert as _$insert } from "opentui:runtime-module:%40opentui%2Fsolid";
-import { setProp as _$setProp } from "opentui:runtime-module:%40opentui%2Fsolid";
-import { createElement as _$createElement } from "opentui:runtime-module:%40opentui%2Fsolid";
-import { createComponent as _$createComponent } from "opentui:runtime-module:%40opentui%2Fsolid";
-/** @jsxImportSource opentui:runtime-module:%40opentui%2Fsolid */
+import { createElement as _$createElement } from "opentui:runtime-module:%40opentui%2Fsolid"
+import { createComponent as _$createComponent } from "opentui:runtime-module:%40opentui%2Fsolid"
 // @ts-nocheck
 import { createSignal, createMemo, createEffect, onCleanup } from "opentui:runtime-module:solid-js"
 import { Database as BunSqlite } from "bun:sqlite"
@@ -171,31 +164,48 @@ const StatRow = (props: {
   value: string
   accent?: boolean
   dim?: boolean
-}) => (
-  <box width="100%" flexDirection="row" justifyContent="space-between">
-    <text fg={props.theme.text}>{props.label}</text>
-    <text
-      fg={
-        props.dim
-          ? props.theme.textMuted
-          : props.accent
-          ? props.theme.accent
-          : props.theme.text
-      }
-    >
-      {props.value}
-    </text>
-  </box>
+}) => _$createElement("box", { width: "100%", flexDirection: "row", justifyContent: "space-between" },
+  _$createElement("text", { fg: props.theme.text }, props.label),
+  _$createElement("text", {
+    fg: props.dim
+      ? props.theme.textMuted
+      : props.accent
+        ? props.theme.accent
+        : props.theme.text
+  }, props.value)
 )
 
 // SectionHeader component
-const SectionHeader = (props: { theme: any; title: string }) => (
-  <box width="100%" marginTop={1} flexDirection="row" justifyContent="space-between">
-    <text fg={props.theme.text}>
-      <b>{props.title}</b>
-    </text>
-  </box>
-)
+const SectionHeader = (props: { theme: any; title: string }) =>
+  _$createElement("box", { width: "100%", marginTop: 1, flexDirection: "row", justifyContent: "space-between" },
+    _$createElement("text", { fg: props.theme.text },
+      _$createElement("b", null, props.title)
+    )
+  )
+
+// Render a single task row
+const TaskRow = (props: {
+  task: Task
+  fg: string
+  theme: any
+  onClick: (task: Task) => void
+}) =>
+  _$createElement("box", {
+    key: props.task.id,
+    width: "100%",
+    flexDirection: "row",
+    paddingLeft: 1,
+    paddingRight: 1,
+    onMouseDown: () => props.onClick(props.task)
+  },
+    _$createElement("text", { fg: props.fg }, getStatusIcon(props.task.status)),
+    _$createElement("text", { fg: props.theme.text, marginLeft: 1, width: 25 },
+      props.task.title.substring(0, 20)
+    ),
+    _$createElement("text", { fg: props.theme.textMuted },
+      formatRelativeTime(props.task.updatedAt)
+    )
+  )
 
 const TaskPanel = (props: { api: any; sessionID: () => string; theme: any }) => {
   const [snapshot, setSnapshot] = createSignal<Task[]>([])
@@ -262,146 +272,143 @@ const TaskPanel = (props: { api: any; sessionID: () => string; theme: any }) => 
   const completedTasks = createMemo(() => filteredTasks().filter(t => t.status === "completed"))
   const failedTasks = createMemo(() => filteredTasks().filter(t => t.status === "failed"))
 
-  return (
-    <box
-      width="100%"
-      flexDirection="column"
-      border={SINGLE_BORDER}
-      borderColor={props.theme.borderActive}
-      paddingTop={1}
-      paddingBottom={1}
-      paddingLeft={1}
-      paddingRight={1}
-    >
-      {/* Header */}
-      <box flexDirection="row" justifyContent="space-between" alignItems="center">
-        <box paddingLeft={1} paddingRight={1} backgroundColor={props.theme.accent} onMouseDown={toggleFilter}>
-          <text fg={props.theme.background}>
-            <b>Tasks {filterMode() === "session" ? "[Session]" : "[All]"}</b>
-          </text>
-        </box>
-        <text fg={props.theme.textMuted}>v{packageJson.version}</text>
-      </box>
+  return _$createElement("box", {
+    width: "100%",
+    flexDirection: "column",
+    border: SINGLE_BORDER,
+    borderColor: props.theme.borderActive,
+    paddingTop: 1,
+    paddingBottom: 1,
+    paddingLeft: 1,
+    paddingRight: 1
+  },
+    // Header
+    _$createElement("box", { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
+      _$createElement("box", {
+        paddingLeft: 1,
+        paddingRight: 1,
+        backgroundColor: props.theme.accent,
+        onMouseDown: toggleFilter
+      },
+        _$createElement("text", { fg: props.theme.background },
+          _$createElement("b", null, "Tasks ", filterMode() === "session" ? "[Session]" : "[All]")
+        )
+      ),
+      _$createElement("text", { fg: props.theme.textMuted }, "v", packageJson.version)
+    ),
 
-      {/* Stats line under header - evenly distributed */}
-      <box width="100%" marginTop={1} flexDirection="row" justifyContent="space-between" alignItems="center">
-        <text fg={props.theme.textMuted} flexShrink={0}>📊 T:{filteredTasks().length}</text>
-        <text fg={props.theme.warning} flexShrink={0}>▶ R:{runningTasks().length}</text>
-        <text fg={props.theme.success} flexShrink={0}>✓ C:{completedTasks().length}</text>
-        <text fg={props.theme.error} flexShrink={0}>✗ F:{failedTasks().length}</text>
-      </box>
+    // Stats line under header - evenly distributed
+    _$createElement("box", { width: "100%", marginTop: 1, flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
+      _$createElement("text", { fg: props.theme.textMuted, flexShrink: 0 }, "\uD83D\uDCCA T:", filteredTasks().length),
+      _$createElement("text", { fg: props.theme.warning, flexShrink: 0 }, "\u25B6 R:", runningTasks().length),
+      _$createElement("text", { fg: props.theme.success, flexShrink: 0 }, "\u2713 C:", completedTasks().length),
+      _$createElement("text", { fg: props.theme.error, flexShrink: 0 }, "\u2717 F:", failedTasks().length),
+    ),
 
-      {/* Running section */}
-      <box width="100%" marginTop={1} flexDirection="row" justifyContent="space-between">
-        <text fg={props.theme.text}>
-          <b>Running</b>
-        </text>
-        {runningTasks().length > 0 ? (
-          <text fg={props.theme.warning}>{runningTasks().length} active</text>
-        ) : (
-          <text fg={props.theme.textMuted}>idle</text>
-        )}
-      </box>
+    // Running section
+    _$createElement("box", { width: "100%", marginTop: 1, flexDirection: "row", justifyContent: "space-between" },
+      _$createElement("text", { fg: props.theme.text },
+        _$createElement("b", null, "Running")
+      ),
+      runningTasks().length > 0
+        ? _$createElement("text", { fg: props.theme.warning }, runningTasks().length, " active")
+        : _$createElement("text", { fg: props.theme.textMuted }, "idle")
+    ),
 
-      {/* Task list */}
-      <box flexDirection="column" width="100%">
-        {runningTasks().length === 0 && completedTasks().length === 0 && failedTasks().length === 0 ? (
-          <box paddingLeft={1} paddingTop={1}>
-            <text fg={props.theme.textMuted}>No tasks yet</text>
-          </box>
-        ) : (
-          <>
-            {/* Running tasks */}
-            {runningTasks().map((task) => (
-              <box
-                key={task.id}
-                width="100%"
-                flexDirection="row"
-                paddingLeft={1}
-                paddingRight={1}
-                onMouseDown={() => handleTaskClick(task)}
-              >
-                <text fg={props.theme.warning}>{getStatusIcon(task.status)}</text>
-                <text fg={props.theme.text} marginLeft={1} width={25}>
-                  {task.title.substring(0, 20)}
-                </text>
-                <text fg={props.theme.textMuted}>
-                  {formatRelativeTime(task.updatedAt)}
-                </text>
-              </box>
-            ))}
+    // Task list
+    _$createElement("box", { flexDirection: "column", width: "100%" },
+      runningTasks().length === 0 && completedTasks().length === 0 && failedTasks().length === 0
+        ? _$createElement("box", { paddingLeft: 1, paddingTop: 1 },
+          _$createElement("text", { fg: props.theme.textMuted }, "No tasks yet")
+        )
+        : // Running tasks
+        [
+          // Running tasks
+          ...runningTasks().map((task) =>
+            _$createElement("box", {
+              key: task.id,
+              width: "100%",
+              flexDirection: "row",
+              paddingLeft: 1,
+              paddingRight: 1,
+              onMouseDown: () => handleTaskClick(task)
+            },
+              _$createElement("text", { fg: props.theme.warning }, getStatusIcon(task.status)),
+              _$createElement("text", { fg: props.theme.text, marginLeft: 1, width: 25 },
+                task.title.substring(0, 20)
+              ),
+              _$createElement("text", { fg: props.theme.textMuted },
+                formatRelativeTime(task.updatedAt)
+              )
+            )
+          ),
 
-            {/* Completed section */}
-            {completedTasks().length > 0 && (
-              <>
-                <SectionHeader theme={props.theme} title="Completed" />
-                {completedTasks().slice(0, 5).map((task) => (
-                  <box
-                    key={task.id}
-                    width="100%"
-                    flexDirection="row"
-                    paddingLeft={1}
-                    paddingRight={1}
-                    onMouseDown={() => handleTaskClick(task)}
-                  >
-                    <text fg={props.theme.success}>{getStatusIcon(task.status)}</text>
-                    <text fg={props.theme.textMuted} marginLeft={1} width={25}>
-                      {task.title.substring(0, 20)}
-                    </text>
-                    <text fg={props.theme.textMuted}>
-                      {formatRelativeTime(task.updatedAt)}
-                    </text>
-                  </box>
-                ))}
-              </>
-            )}
+          // Completed section
+          completedTasks().length > 0
+            ? [
+              _$createComponent(SectionHeader, { theme: props.theme, title: "Completed" }),
+              ...completedTasks().slice(0, 5).map((task) =>
+                _$createElement("box", {
+                  key: task.id,
+                  width: "100%",
+                  flexDirection: "row",
+                  paddingLeft: 1,
+                  paddingRight: 1,
+                  onMouseDown: () => handleTaskClick(task)
+                },
+                  _$createElement("text", { fg: props.theme.success }, getStatusIcon(task.status)),
+                  _$createElement("text", { fg: props.theme.textMuted, marginLeft: 1, width: 25 },
+                    task.title.substring(0, 20)
+                  ),
+                  _$createElement("text", { fg: props.theme.textMuted },
+                    formatRelativeTime(task.updatedAt)
+                  )
+                )
+              )
+            ]
+            : [],
 
-            {/* Failed section */}
-            {failedTasks().length > 0 && (
-              <>
-                <SectionHeader theme={props.theme} title="Failed" />
-                {failedTasks().slice(0, 5).map((task) => (
-                  <box
-                    key={task.id}
-                    width="100%"
-                    flexDirection="row"
-                    paddingLeft={1}
-                    paddingRight={1}
-                    onMouseDown={() => handleTaskClick(task)}
-                  >
-                    <text fg={props.theme.error}>{getStatusIcon(task.status)}</text>
-                    <text fg={props.theme.textMuted} marginLeft={1} width={25}>
-                      {task.title.substring(0, 20)}
-                    </text>
-                    <text fg={props.theme.textMuted}>
-                      {formatRelativeTime(task.updatedAt)}
-                    </text>
-                  </box>
-                ))}
-              </>
-            )}
-          </>
-        )}
-      </box>
-
-    </box>
+          // Failed section
+          failedTasks().length > 0
+            ? [
+              _$createComponent(SectionHeader, { theme: props.theme, title: "Failed" }),
+              ...failedTasks().slice(0, 5).map((task) =>
+                _$createElement("box", {
+                  key: task.id,
+                  width: "100%",
+                  flexDirection: "row",
+                  paddingLeft: 1,
+                  paddingRight: 1,
+                  onMouseDown: () => handleTaskClick(task)
+                },
+                  _$createElement("text", { fg: props.theme.error }, getStatusIcon(task.status)),
+                  _$createElement("text", { fg: props.theme.textMuted, marginLeft: 1, width: 25 },
+                    task.title.substring(0, 20)
+                  ),
+                  _$createElement("text", { fg: props.theme.textMuted },
+                    formatRelativeTime(task.updatedAt)
+                  )
+                )
+              )
+            ]
+            : [],
+        ]
+    )
   )
 }
 
 export function createSidebarContentSlot(api: any) {
-    return {
-        order: 150,
-        slots: {
-            sidebar_content: (ctx, value) => {
-                const theme = createMemo(() => ctx.theme.current)
-                return (
-                    <TaskPanel
-                        api={api}
-                        sessionID={() => value.session_id}
-                        theme={theme()}
-                    />
-                )
-            },
-        },
-    }
+  return {
+    order: 150,
+    slots: {
+      sidebar_content: (ctx, value) => {
+        const theme = createMemo(() => ctx.theme.current)
+        return _$createComponent(TaskPanel, {
+          api: api,
+          sessionID: () => value.session_id,
+          theme: theme()
+        })
+      },
+    },
+  }
 }
