@@ -1,6 +1,6 @@
 {
   "name": "opencode-background-panel",
-  "version": "0.2.24",
+  "version": "0.2.25",
   "type": "module",
   "description": "OpenCode TUI plugin showing real-time background task list",
   "keywords": [
@@ -18,6 +18,7 @@
   "files": [
     "dist",
     "src/tui",
+    "src/tui-compiled",
     "src/shared",
     "README.md",
     "LICENSE"
@@ -28,7 +29,7 @@
     },
     "./tui": {
       "types": "./src/tui/index.tsx",
-      "import": "./src/tui/index.tsx"
+      "import": "./src/tui/entry.mjs"
     }
   },
   "oc-plugin": [
