@@ -239,16 +239,42 @@ const TaskPanel = (props: { api: TuiPluginApi; sessionID: () => string; theme: T
 
     btpLog("DEBUG", "Filter mode:", mode, "currentSession:", currentSession, "total tasks:", tasks.length)
 
-    if (mode === "session") {
-      // Show tasks created BY current session (parent) or FOR current session (child)
-      const filtered = tasks.filter(t =>
-        t.parentSessionId === currentSession ||
-        t.sessionId === currentSession
-      )
-      btpLog("DEBUG", "Session filtered:", filtered.length, "tasks")
-      return filtered
+    if (mode === "all") return tasks
+
+    // Build parent-to-children map
+    const childrenOf = new Map<string, string[]>()
+    for (const t of tasks) {
+      const pid = t.parentSessionId
+      if (pid) {
+        const siblings = childrenOf.get(pid) || []
+        if (!siblings.includes(t.sessionId)) {
+          siblings.push(t.sessionId)
+          childrenOf.set(pid, siblings)
+        }
+      }
     }
-    return tasks
+
+    // BFS to collect all descendant sessions of currentSession
+    const descendantSessions = new Set<string>()
+    const queue = [currentSession]
+    while (queue.length > 0) {
+      const parent = queue.shift()!
+      const children = childrenOf.get(parent) || []
+      for (const childId of children) {
+        if (!descendantSessions.has(childId)) {
+          descendantSessions.add(childId)
+          queue.push(childId)
+        }
+      }
+    }
+
+    // Show tasks that belong to currentSession OR any of its descendants
+    const filtered = tasks.filter(t =>
+      t.sessionId === currentSession ||
+      descendantSessions.has(t.sessionId)
+    )
+    btpLog("DEBUG", "Session filtered:", filtered.length, "tasks")
+    return filtered
   })
 
   const runningTasks = createMemo(() => filteredTasks().filter(t => t.status === "running"))
