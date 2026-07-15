@@ -21,6 +21,7 @@
 - **⚙️ 灵活配置** — 支持跳过指定任务标题、自定义日志级别
 - **✅ OpenTUI 0.4.x 兼容** — 支持 OpenCode v1.17.20+ 虚拟运行时注册表，自动探测适配
 - **💾 持久化存储** — 数据库位于 `~/.config/opencode/background-panel/`，npm 更新不丢失数据
+- **🔄 递归子任务追踪** — 子 session 再创建的子 session 也会自动显示，支持多层递归
 
 ## 安装
 
@@ -144,6 +145,7 @@ entry.mjs
 - 每秒轮询数据库获取最新任务状态
 - 支持点击任务跳转到对应 session
 - 标题栏点击切换 `[Session]` / `[All]` 过滤模式
+- `[Session]` 模式使用 BFS 递归收集所有后代 session，显示多层递归子任务
 - 版本号从 `package.json` 动态读取
 
 ### 任务生命周期
